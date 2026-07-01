@@ -1,8 +1,8 @@
 // ==WindhawkMod==
 // @id              taskbar-music-lounge
-// @name            Taskbar Music Lounge 
+// @name            Taskbar Music Lounge
 // @description     A native-style music ticker with media controls, music visualizer and expanded Now Playing popup.
-// @version         5.0.1
+// @version         5.0.2
 // @author          Amit
 // @github          https://github.com/AmitJaiswal001
 // @include         explorer.exe
@@ -11,7 +11,7 @@
 
 // ==WindhawkModReadme==
 /*
-# Taskbar Music Lounge Pro
+# Taskbar Music Lounge 
 
 A media controller that uses Windows 11 native DWM styling for a seamless look.
 
@@ -39,13 +39,12 @@ A media controller that uses Windows 11 native DWM styling for a seamless look.
 * **Windows 11:** Required for rounded corners and acrylic blur.
 * **VLC Media Player SMTC Integration:** VLC does not support Windows system media transport controls by default. To display VLC media in the compact bar, install the open-source `vlc-win10smtc` plugin DLL inside VLC's `plugins\misc\` directory and check the plugin box under Tools > Preferences > Show Settings: All > Interface > Control interfaces.
 
-## Bugs That You Might Face
-* **Lyrics Text Overlap:** One Lines Can Overlap Due To Too Long
-* **Unstable Seeker:** Seeker Is Not Much Stable 
+## Bugs Fixed 
+* **OverLapping In Lyrics:** 
+* **Seeker Update On Real time:**
 
-
-We Try To Fix It In Next Version
-
+## Remian Bugs 
+* **Unstable Seeker For Broswer**
 */
 // ==/WindhawkModReadme==
 
@@ -283,8 +282,14 @@ struct LyricState {
     bool showLyrics = false;
 } g_Lyrics;
 
-void ParseLrc(const wstring& lrcStr) {
+void ParseLrc(const wstring& lrcStr, const wstring& targetTitle) {
     lock_guard<mutex> guard(g_Lyrics.lock);
+    
+    // Safety check: if the song was changed while we were fetching, discard the results
+    if (g_Lyrics.trackTitle != targetTitle) {
+        return;
+    }
+    
     g_Lyrics.lines.clear();
     g_Lyrics.plainText.clear();
     
@@ -542,7 +547,7 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
                 if (json.HasKey(L"syncedLyrics") && json.GetNamedValue(L"syncedLyrics").ValueType() == winrt::Windows::Data::Json::JsonValueType::String) {
                     wstring synced = json.GetNamedString(L"syncedLyrics").c_str();
                     if (!synced.empty()) {
-                        ParseLrc(synced);
+                        ParseLrc(synced, title);
                         gotSynced = g_Lyrics.hasLyrics;
                     }
                 }
@@ -551,8 +556,10 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
                     wstring plain = json.GetNamedString(L"plainLyrics").c_str();
                     if (!plain.empty()) {
                         lock_guard<mutex> guard(g_Lyrics.lock);
-                        g_Lyrics.plainText = plain;
-                        g_Lyrics.hasLyrics = true;
+                        if (g_Lyrics.trackTitle == title) {
+                            g_Lyrics.plainText = plain;
+                            g_Lyrics.hasLyrics = true;
+                        }
                     }
                 }
                 loaded = true;
@@ -591,7 +598,7 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
                         if (bestItem.HasKey(L"syncedLyrics") && bestItem.GetNamedValue(L"syncedLyrics").ValueType() == winrt::Windows::Data::Json::JsonValueType::String) {
                             wstring synced = bestItem.GetNamedString(L"syncedLyrics").c_str();
                             if (!synced.empty()) {
-                                ParseLrc(synced);
+                                ParseLrc(synced, title);
                                 gotSynced = g_Lyrics.hasLyrics;
                             }
                         }
@@ -600,8 +607,10 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
                             wstring plain = bestItem.GetNamedString(L"plainLyrics").c_str();
                             if (!plain.empty()) {
                                 lock_guard<mutex> guard(g_Lyrics.lock);
-                                g_Lyrics.plainText = plain;
-                                g_Lyrics.hasLyrics = true;
+                                if (g_Lyrics.trackTitle == title) {
+                                    g_Lyrics.plainText = plain;
+                                    g_Lyrics.hasLyrics = true;
+                                }
                             }
                         }
                         loaded = true;
@@ -630,7 +639,7 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
                     if (json.HasKey(L"syncedLyrics") && json.GetNamedValue(L"syncedLyrics").ValueType() == winrt::Windows::Data::Json::JsonValueType::String) {
                         wstring synced = json.GetNamedString(L"syncedLyrics").c_str();
                         if (!synced.empty()) {
-                            ParseLrc(synced);
+                            ParseLrc(synced, title);
                             gotSynced = g_Lyrics.hasLyrics;
                         }
                     }
@@ -639,8 +648,10 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
                         wstring plain = json.GetNamedString(L"plainLyrics").c_str();
                         if (!plain.empty()) {
                             lock_guard<mutex> guard(g_Lyrics.lock);
-                            g_Lyrics.plainText = plain;
-                            g_Lyrics.hasLyrics = true;
+                            if (g_Lyrics.trackTitle == title) {
+                                g_Lyrics.plainText = plain;
+                                g_Lyrics.hasLyrics = true;
+                            }
                         }
                     }
                 }
@@ -655,6 +666,9 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
 
 ULONGLONG g_TimelineLastUpdated = 0;
 ULONGLONG g_LastSeekTime        = 0;
+int64_t g_LastTimelineUpdatedTicks = 0;
+double g_PendingSeekPosition    = 0.0;
+bool g_SeekPending              = false;
 
 float   g_VolumeLevel    = 0.5f;   // 0.0 – 1.0
 bool    g_IsMuted        = false;
@@ -1263,15 +1277,50 @@ void UpdateMediaInfoBackground() {
             GlobalSystemMediaTransportControlsSessionTimelineProperties tl = nullptr;
             try { tl = session.GetTimelineProperties(); } catch (...) {}
 
-            // Timeline (with Seek lock protection increased to 4.5 seconds to prevent browser rollback jitter)
-            if (tl && GetTickCount64() - g_LastSeekTime > 4500) {
+            // Timeline (with Seek lock protection and LastUpdatedTime check to prevent browser stale progress snaps)
+            const ULONGLONG SEEK_SETTLE_MS = 1500;
+            if (tl) {
                 try {
-                    auto pos = tl.Position();
-                    auto end = tl.EndTime();
-                    g_Timeline.positionSec = pos.count() / 1e7;   // 100ns → seconds
-                    g_Timeline.durationSec = end.count() / 1e7;
-                    g_Timeline.valid       = (g_Timeline.durationSec > 0.0);
-                    g_TimelineLastUpdated  = GetTickCount64();
+                    auto lut = tl.LastUpdatedTime();
+                    int64_t lutTicks = lut.time_since_epoch().count();
+
+                    // Only query SMTC properties if the player has actually pushed new progress data
+                    if (lutTicks != g_LastTimelineUpdatedTicks) {
+                        auto pos = tl.Position();
+                        auto end = tl.EndTime();
+                        double newPos = pos.count() / 1e7;   // 100ns → seconds
+                        double newDur = end.count() / 1e7;
+
+                        bool skipUpdate = false;
+
+                        // Seek pending protection check: wait for player to catch up to target position
+                        if (g_SeekPending) {
+                            if (GetTickCount64() - g_LastSeekTime > 3000) {
+                                g_SeekPending = false;
+                            } else {
+                                if (fabs(newPos - g_PendingSeekPosition) > 2.0) {
+                                    skipUpdate = true;
+                                } else {
+                                    g_SeekPending = false;
+                                }
+                            }
+                        }
+
+                        // Also ignore updates during the hard post-seek window if the position is far from expected
+                        if (GetTickCount64() - g_LastSeekTime <= SEEK_SETTLE_MS) {
+                            if (fabs(newPos - g_Timeline.positionSec) > 2.0) {
+                                skipUpdate = true;
+                            }
+                        }
+
+                        if (!skipUpdate) {
+                            g_LastTimelineUpdatedTicks = lutTicks;
+                            g_Timeline.positionSec = newPos;
+                            g_Timeline.durationSec = newDur;
+                            g_Timeline.valid       = (newDur > 0.0);
+                            g_TimelineLastUpdated  = GetTickCount64();
+                        }
+                    }
                 } catch (...) {}
             }
 
@@ -1318,6 +1367,24 @@ void UpdateMediaInfoBackground() {
                 try { newArtist = props.Artist().c_str(); } catch (...) {}
             }
             if (newTitle.empty()) {
+                // If we just seeked, do NOT clear the media state! The player is just busy seeking.
+                if (GetTickCount64() - g_LastSeekTime <= 1500) {
+                    return;
+                }
+
+                // Verify if the playback is actually stopped/closed.
+                // If it is still Playing, Paused, or Changing, do NOT wipe the metadata, just ignore!
+                winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus statusVal = 
+                    winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed;
+                if (info) {
+                    try { statusVal = info.PlaybackStatus(); } catch (...) {}
+                }
+
+                if (statusVal != winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus::Closed &&
+                    statusVal != winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus::Stopped) {
+                    return; // Ignore temporary empty title while loading/buffering/seeking
+                }
+
                 lock_guard<mutex> guard(g_MediaState.lock);
                 g_MediaState.hasMedia = false;
                 g_MediaState.title    = L"No media playing";
@@ -1504,62 +1571,88 @@ void UpdateMediaInfo() {
 }
 
 void SendMediaCommand(int cmd) {
-    try {
-        auto session = (g_hExpandedWindow && IsWindowVisible(g_hExpandedWindow)) ? GetPopupSession() : GetCompactSession();
-        if (session) {
-            if (cmd == 1) session.TrySkipPreviousAsync();
-            else if (cmd == 2) session.TryTogglePlayPauseAsync();
-            else if (cmd == 3) session.TrySkipNextAsync();
-        }
-    } catch (...) {}
+    std::thread([cmd]() {
+        try {
+            winrt::init_apartment();
+            CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+            auto session = (g_hExpandedWindow && IsWindowVisible(g_hExpandedWindow)) ? GetPopupSession() : GetCompactSession();
+            if (session) {
+                if (cmd == 1) session.TrySkipPreviousAsync().get();
+                else if (cmd == 2) session.TryTogglePlayPauseAsync().get();
+                else if (cmd == 3) session.TrySkipNextAsync().get();
+            }
+            CoUninitialize();
+            winrt::uninit_apartment();
+        } catch (...) {}
+    }).detach();
 }
 
 void SendSeekCommand(double seconds) {
-    try {
-        auto session = (g_hExpandedWindow && IsWindowVisible(g_hExpandedWindow)) ? GetPopupSession() : GetCompactSession();
-        if (session) {
-            int64_t ticks = (int64_t)(seconds * 1e7);
-            session.TryChangePlaybackPositionAsync(ticks);
-        }
-    } catch (...) {}
+    std::thread([seconds]() {
+        try {
+            winrt::init_apartment();
+            CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+            auto session = (g_hExpandedWindow && IsWindowVisible(g_hExpandedWindow)) ? GetPopupSession() : GetCompactSession();
+            if (session) {
+                double targetSec = seconds;
+                if (targetSec < 0.1) targetSec = 0.1; // Prevent exact 0 seek issues in VLC/browsers
+                int64_t ticks = (int64_t)(targetSec * 1e7);
+                session.TryChangePlaybackPositionAsync(ticks).get();
+            }
+            CoUninitialize();
+            winrt::uninit_apartment();
+        } catch (...) {}
+    }).detach();
 }
 
 void ToggleShuffle() {
-    try {
-        auto session = (g_hExpandedWindow && IsWindowVisible(g_hExpandedWindow)) ? GetPopupSession() : GetCompactSession();
-        if (session) {
-            auto info = session.GetPlaybackInfo();
-            if (info) {
-                auto shRef = info.IsShuffleActive();
-                bool currentShuffle = shRef ? shRef.Value() : false;
-                session.TryChangeShuffleActiveAsync(!currentShuffle);
+    std::thread([]() {
+        try {
+            winrt::init_apartment();
+            CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+            auto session = (g_hExpandedWindow && IsWindowVisible(g_hExpandedWindow)) ? GetPopupSession() : GetCompactSession();
+            if (session) {
+                auto info = session.GetPlaybackInfo();
+                if (info) {
+                    auto shRef = info.IsShuffleActive();
+                    bool currentShuffle = shRef ? shRef.Value() : false;
+                    session.TryChangeShuffleActiveAsync(!currentShuffle).get();
+                }
             }
-        }
-    } catch (...) {}
+            CoUninitialize();
+            winrt::uninit_apartment();
+        } catch (...) {}
+    }).detach();
 }
 
 void ToggleRepeat() {
-    try {
-        auto session = (g_hExpandedWindow && IsWindowVisible(g_hExpandedWindow)) ? GetPopupSession() : GetCompactSession();
-        if (session) {
-            auto info = session.GetPlaybackInfo();
-            if (info) {
-                auto rpRef = info.AutoRepeatMode();
-                winrt::Windows::Media::MediaPlaybackAutoRepeatMode currentRepeat =
-                    rpRef ? rpRef.Value() : winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None;
-                
-                winrt::Windows::Media::MediaPlaybackAutoRepeatMode nextRepeat;
-                if (currentRepeat == winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None) {
-                    nextRepeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::List;
-                } else if (currentRepeat == winrt::Windows::Media::MediaPlaybackAutoRepeatMode::List) {
-                    nextRepeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track;
-                } else {
-                    nextRepeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None;
+    std::thread([]() {
+        try {
+            winrt::init_apartment();
+            CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+            auto session = (g_hExpandedWindow && IsWindowVisible(g_hExpandedWindow)) ? GetPopupSession() : GetCompactSession();
+            if (session) {
+                auto info = session.GetPlaybackInfo();
+                if (info) {
+                    auto rpRef = info.AutoRepeatMode();
+                    winrt::Windows::Media::MediaPlaybackAutoRepeatMode currentRepeat =
+                        rpRef ? rpRef.Value() : winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None;
+                    
+                    winrt::Windows::Media::MediaPlaybackAutoRepeatMode nextRepeat;
+                    if (currentRepeat == winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None) {
+                        nextRepeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::List;
+                    } else if (currentRepeat == winrt::Windows::Media::MediaPlaybackAutoRepeatMode::List) {
+                        nextRepeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track;
+                    } else {
+                        nextRepeat = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None;
+                    }
+                    session.TryChangeAutoRepeatModeAsync(nextRepeat).get();
                 }
-                session.TryChangeAutoRepeatModeAsync(nextRepeat);
             }
-        }
-    } catch (...) {}
+            CoUninitialize();
+            winrt::uninit_apartment();
+        } catch (...) {}
+    }).detach();
 }
 
 // ============================================================
@@ -1857,57 +1950,70 @@ void DrawTextWithShadow(Graphics& g, const wstring& text, Font* font, const Poin
     DrawStringWithEmoji(g, text, font, mainRect, &sf, textColor);
 }
 
+void DrawTextWithShadowNormal(Graphics& g, const wstring& text, Font* font, const RectF& rect, StringFormat* sf, Color textColor) {
+    BYTE r = textColor.GetRed(), g_ = textColor.GetGreen(), b = textColor.GetBlue();
+    float luminance = 0.299f * r + 0.587f * g_ + 0.114f * b;
+    Color shadowColor = (luminance > 128) ? Color(120, 0, 0, 0) : Color(120, 255, 255, 255);
+    
+    RectF shadowRect(rect.X + 1.0f, rect.Y + 1.0f, rect.Width, rect.Height);
+    SolidBrush shadowBrush(shadowColor);
+    SolidBrush textBrush(textColor);
+    
+    g.DrawString(text.c_str(), -1, font, shadowRect, sf, &shadowBrush);
+    g.DrawString(text.c_str(), -1, font, rect, sf, &textBrush);
+}
+
 void DrawScaledLyricLine(Graphics& g, const wstring& text, Font* baseFont, const RectF& rect, StringFormat* sf, Color textColor) {
     if (text.empty()) return;
     
-    RectF layoutRect(0, 0, 2000.0f, rect.Height);
+    StringFormat sfWrap;
+    sfWrap.SetAlignment(StringAlignmentCenter);
+    sfWrap.SetLineAlignment(StringAlignmentCenter);
+    sfWrap.SetTrimming(StringTrimmingNone); // Never truncate with ...
+    
+    // Create a tall drawing rect centered on the line Y center to allow multi-line expansion without clipping
+    float centerY = rect.Y + rect.Height / 2.0f;
+    float largeH = 120.0f; 
+    RectF drawRect(rect.X, centerY - largeH / 2.0f, rect.Width, largeH);
+    
+    RectF layoutRect(0, 0, 2000.0f, largeH);
     RectF boundRect;
-    g.MeasureString(text.c_str(), -1, baseFont, layoutRect, sf, &boundRect);
+    g.MeasureString(text.c_str(), -1, baseFont, layoutRect, &sfWrap, &boundRect);
     
     float maxW = rect.Width - 6.0f;
-    bool isBold = (baseFont->GetStyle() & FontStyleBold) != 0;
-    if (isBold && boundRect.Width > maxW && text.find(L' ') != wstring::npos) {
-        size_t mid = text.length() / 2;
-        size_t splitPos = wstring::npos;
-        size_t minDist = 99999;
-        
-        for (size_t k = 0; k < text.length(); k++) {
-            if (text[k] == L' ') {
-                size_t dist = (k > mid) ? (k - mid) : (mid - k);
-                if (dist < minDist) {
-                    minDist = dist;
-                    splitPos = k;
-                }
-            }
-        }
-        
-        if (splitPos != wstring::npos) {
-            wstring line1 = text.substr(0, splitPos);
-            wstring line2 = text.substr(splitPos + 1);
-            
-            RectF r1(rect.X, rect.Y - 12.0f, rect.Width, rect.Height);
-            RectF r2(rect.X, rect.Y + 12.0f, rect.Width, rect.Height);
-            
-            DrawTextWithShadow(g, line1, baseFont, r1, sf, textColor);
-            DrawTextWithShadow(g, line2, baseFont, r2, sf, textColor);
-            return;
-        }
-    }
-    
     Font* fontToUse = baseFont;
     std::unique_ptr<Font> scaledFont;
-    if (boundRect.Width > maxW && maxW > 20.0f) {
-        float scaleFactor = maxW / boundRect.Width;
-        float newSize = baseFont->GetSize() * scaleFactor;
-        if (newSize < 9.5f) newSize = 9.5f;
-        
-        FontFamily family;
-        baseFont->GetFamily(&family);
-        scaledFont = std::make_unique<Font>(&family, newSize, baseFont->GetStyle(), UnitPixel);
-        fontToUse = scaledFont.get();
-    }
     
-    DrawTextWithShadow(g, text, fontToUse, rect, sf, textColor);
+    bool isBold = (baseFont->GetStyle() & FontStyleBold) != 0;
+    
+    if (isBold) {
+        // Active line: allows wrapping up to 3 lines. Scale down only if extremely long (> 3 lines of width)
+        if (boundRect.Width > maxW * 3.0f) {
+            float scaleFactor = (maxW * 3.0f) / boundRect.Width;
+            float newSize = baseFont->GetSize() * scaleFactor;
+            if (newSize < 9.5f) newSize = 9.5f;
+            
+            FontFamily family;
+            baseFont->GetFamily(&family);
+            scaledFont = std::make_unique<Font>(&family, newSize, baseFont->GetStyle(), UnitPixel);
+            fontToUse = scaledFont.get();
+        }
+        DrawTextWithShadowNormal(g, text, fontToUse, drawRect, &sfWrap, textColor);
+    } else {
+        // Inactive line: keeps on a single line by scaling down
+        sfWrap.SetFormatFlags(StringFormatFlagsNoWrap);
+        if (boundRect.Width > maxW && maxW > 20.0f) {
+            float scaleFactor = maxW / boundRect.Width;
+            float newSize = baseFont->GetSize() * scaleFactor;
+            if (newSize < 9.5f) newSize = 9.5f;
+            
+            FontFamily family;
+            baseFont->GetFamily(&family);
+            scaledFont = std::make_unique<Font>(&family, newSize, baseFont->GetStyle(), UnitPixel);
+            fontToUse = scaledFont.get();
+        }
+        DrawTextWithShadowNormal(g, text, fontToUse, drawRect, &sfWrap, textColor);
+    }
 }
 
 
@@ -2251,8 +2357,28 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
             g.SetClip(&lyricPath);
             
             int boxCenterY = artY + artSize / 2;
+            
+            float activeShift = 0.0f;
+            if (activeIndex >= 0 && activeIndex < (int)lyricsLines.size()) {
+                StringFormat sfWrap;
+                sfWrap.SetAlignment(StringAlignmentCenter);
+                sfWrap.SetLineAlignment(StringAlignmentCenter);
+                float maxW = (float)artSize - 6.0f;
+                RectF layoutRect(0, 0, maxW, 200.0f);
+                RectF boundRect;
+                g.MeasureString(lyricsLines[activeIndex].text.c_str(), -1, &lyricBoldFont, layoutRect, &sfWrap, &boundRect);
+                if (boundRect.Height > 22.0f) {
+                    activeShift = (boundRect.Height - 16.0f) / 2.0f + 14.0f; // Gap size dynamically proportional to height
+                }
+            }
+
             for (int i = 0; i < (int)lyricsLines.size(); i++) {
                 float lineY = (float)boxCenterY + (i * lineHeight) - g_LyricsScrollOffset;
+                if (i < activeIndex) {
+                    lineY -= activeShift;
+                } else if (i > activeIndex) {
+                    lineY += activeShift;
+                }
                 
                 if (lineY < artY - 30.0f || lineY > artY + artSize + 30.0f) {
                     continue;
@@ -3025,6 +3151,8 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 ReleaseCapture();
                 g_LastSeekTime = GetTickCount64();
                 g_TimelineLastUpdated = GetTickCount64();
+                g_PendingSeekPosition = g_Timeline.positionSec;
+                g_SeekPending = true;
                 SendSeekCommand(g_Timeline.positionSec);
             }
             if (g_VolDragging) {
