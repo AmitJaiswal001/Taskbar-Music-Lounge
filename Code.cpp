@@ -40,8 +40,8 @@ A media controller that uses Windows 11 native DWM styling for a seamless look.
 * **VLC Media Player SMTC Integration:** VLC does not support Windows system media transport controls by default. To display VLC media in the compact bar, install the open-source `vlc-win10smtc` plugin DLL inside VLC's `plugins\misc\` directory and check the plugin box under Tools > Preferences > Show Settings: All > Interface > Control interfaces.
 
 ## Bugs Fixed 
-* **OverLapping In Lyrics:** 
-* **Seeker Update On Real time:**
+* **OverLapping In Lyrics:** Add Auto Expansion Of Lyrics Into Multiple Line
+* **Seeker Update On Real time:** Remove Seeker 4 Sec Update To 1 Sec 
 
 ## Remian Bugs 
 * **Unstable Seeker For Broswer**
