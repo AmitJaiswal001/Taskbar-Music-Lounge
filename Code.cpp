@@ -2,7 +2,7 @@
 // @id              taskbar-music-lounge
 // @name            Taskbar Music Lounge
 // @description     A native-style music ticker with media controls, music visualizer and expanded Now Playing popup.
-// @version         5.0.2
+// @version         5.0.3
 // @author          Amit
 // @github          https://github.com/AmitJaiswal001
 // @include         explorer.exe
@@ -52,13 +52,13 @@ A media controller that uses Windows 11 native DWM styling for a seamless look.
 /*
 - PanelWidth: 300
   $name: Panel Width
-- PanelHeight: 48
+- PanelHeight: 52
   $name: Panel Height
-- FontSize: 11
+- FontSize: 15
   $name: Font Size
 - ButtonScale: 1.0
   $name: Button Scale (1.0 = Normal, 2.0 = 4K)
-- HideFullscreen: false
+- HideFullscreen: true
   $name: Hide when Fullscreen
 - IdleTimeout: 0
   $name: Auto-hide when paused (Seconds). Set 0 to disable.
@@ -72,17 +72,19 @@ A media controller that uses Windows 11 native DWM styling for a seamless look.
   $name: Manual Text Color (Hex)
 - BgOpacity: 0
   $name: Acrylic Tint Opacity (0-255). Keep 0 for pure glass.
+- UseBlur: flase
+  $name: Use Acrylic Blur (glass mode)
 - PopupWidth: 320
   $name: Popup Width
 - PopupHeight: 380
   $name: Popup Height
-- PopupFontSize: 12
+- PopupFontSize: 15
   $name: Popup Font Size
-- PopupIconSize: 24
+- PopupIconSize: 28
   $name: Popup App Icon Size
 - ShowVisualizer: true
   $name: Show Music Visualizer
-- RealTimeVisualizer: true
+- RealTimeVisualizer: false
   $name: Real-time sound reactive visualizer
 - VisualizerScale: 1.0
   $name: Visualizer Bar Scale
@@ -90,7 +92,7 @@ A media controller that uses Windows 11 native DWM styling for a seamless look.
   $name: Visualizer Bar Height
 - FetchLyrics: true
   $name: Fetch and Display Lyrics
-- LyricsFontSize: 12
+- LyricsFontSize: 14
   $name: Lyrics Font Size
 */
 // ==/WindhawkModSettings==
@@ -220,6 +222,7 @@ struct ModSettings {
     double visualizerScale = 1.0;
     int    visualizerHeight = 14;
     bool   glassBackdrop = true;
+    bool   useBlur       = true;
     bool   fetchLyrics = true;
     int    lyricsFontSize = 12;
 } g_Settings;
@@ -669,6 +672,7 @@ ULONGLONG g_LastSeekTime        = 0;
 int64_t g_LastTimelineUpdatedTicks = 0;
 double g_PendingSeekPosition    = 0.0;
 bool g_SeekPending              = false;
+BYTE g_MediaWindowAlpha         = 255;
 
 float   g_VolumeLevel    = 0.5f;   // 0.0 – 1.0
 bool    g_IsMuted        = false;
@@ -998,7 +1002,8 @@ void LoadSettings() {
 
     g_Settings.bgOpacity = Wh_GetIntSetting(L"BgOpacity");
     g_Settings.bgOpacity = max(0, min(255, g_Settings.bgOpacity));
-    g_Settings.glassBackdrop = false;
+    g_Settings.useBlur = Wh_GetIntSetting(L"UseBlur") != 0;
+    g_Settings.glassBackdrop = g_Settings.useBlur;
 
     g_Settings.popupWidth    = Wh_GetIntSetting(L"PopupWidth");
     g_Settings.popupHeight   = Wh_GetIntSetting(L"PopupHeight");
@@ -1659,6 +1664,7 @@ void ToggleRepeat() {
 // Visuals helpers
 // ============================================================
 bool IsSystemLightMode() {
+    if (!g_Settings.useBlur) return false; // Force dark mode if blur is disabled!
     DWORD value = 0, size = sizeof(value);
     if (RegGetValueW(HKEY_CURRENT_USER,
             L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
@@ -1676,31 +1682,35 @@ void ApplyAcrylicBlur(HWND hwnd, DWORD tintOverride = 0, bool useTintOverride = 
     DWM_WINDOW_CORNER_PREFERENCE pref = DWMWCP_ROUND;
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &pref, sizeof(pref));
 
+    bool isMediaWnd = (hwnd == g_hMediaWindow);
+
     // 1. Force light backdrop when GlassBackdrop is enabled for macOS clear glass style, otherwise use dark mode based on theme
-    BOOL darkMode = g_Settings.glassBackdrop ? FALSE : !IsSystemLightMode();
+    BOOL darkMode = (g_Settings.glassBackdrop && !isMediaWnd) ? FALSE : !IsSystemLightMode();
     DwmSetWindowAttribute(hwnd, 20, &darkMode, sizeof(darkMode)); // DWMWA_USE_IMMERSIVE_DARK_MODE
 
     // 2. Enable Windows 11 official Acrylic Backdrop if GlassBackdrop is active, otherwise solid none
-    DWORD systemBackdropType = g_Settings.glassBackdrop ? 3 : 1; // 3 = Acrylic, 1 = None (Opaque)
-    DwmSetWindowAttribute(hwnd, 38, &systemBackdropType, sizeof(systemBackdropType));
+    DWORD systemBackdropType = (g_Settings.glassBackdrop && !isMediaWnd) ? 3 : 1; // 3 = Acrylic, 1 = None (Opaque)
+    HRESULT hr = DwmSetWindowAttribute(hwnd, 38, &systemBackdropType, sizeof(systemBackdropType));
 
-    // 3. Fallback for Windows 10 SetWindowCompositionAttribute
-    HMODULE hUser = GetModuleHandle(L"user32.dll");
-    if (hUser) {
-        auto SetComp = (pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
-        if (SetComp) {
-            DWORD tint = useTintOverride ? tintOverride :
-                         (g_Settings.glassBackdrop ? (IsSystemLightMode() ? 0x01FFFFFF : 0x01000000) :
-                         (g_Settings.autoTheme ? (IsSystemLightMode() ? 0x60FFFFFF : 0x60000000)
-                                               : ((g_Settings.bgOpacity << 24) | 0xFFFFFF)));
-            ACCENT_POLICY policy;
-            if (g_Settings.glassBackdrop) {
-                policy = { ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, tint, 0 };
-            } else {
-                policy = { ACCENT_DISABLED, 0, 0, 0 };
+    // 3. Fallback for Windows 10 SetWindowCompositionAttribute (only run if native Win11 backdrop fails or is not glass)
+    if (FAILED(hr) || !g_Settings.glassBackdrop || isMediaWnd) {
+        HMODULE hUser = GetModuleHandle(L"user32.dll");
+        if (hUser) {
+            auto SetComp = (pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
+            if (SetComp) {
+                DWORD tint = useTintOverride ? tintOverride :
+                             ((g_Settings.glassBackdrop && !isMediaWnd) ? (IsSystemLightMode() ? 0x01FFFFFF : 0x01000000) :
+                             (g_Settings.autoTheme ? (IsSystemLightMode() ? 0x60FFFFFF : 0x60000000)
+                                                   : ((g_Settings.bgOpacity << 24) | 0xFFFFFF)));
+                ACCENT_POLICY policy;
+                if (g_Settings.glassBackdrop && !isMediaWnd) {
+                    policy = { ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, tint, 0 };
+                } else {
+                    policy = { ACCENT_DISABLED, 0, 0, 0 };
+                }
+                WINDOWCOMPOSITIONATTRIBDATA data = { WCA_ACCENT_POLICY, &policy, sizeof(policy) };
+                SetComp(hwnd, &data);
             }
-            WINDOWCOMPOSITIONATTRIBDATA data = { WCA_ACCENT_POLICY, &policy, sizeof(policy) };
-            SetComp(hwnd, &data);
         }
     }
 }
@@ -1802,6 +1812,7 @@ void DrawVisualizer(Graphics& g, float x, float y, float maxWidth, float maxHeig
     float barW = 3.0f * barScale;
     
     SolidBrush brush(color);
+    SolidBrush shadowBrush(Color(120, 0, 0, 0));
     
     for (int i = 0; i < numBars; i++) {
         float h = g_VisBars[i] * maxHeight;
@@ -1812,6 +1823,13 @@ void DrawVisualizer(Graphics& g, float x, float y, float maxWidth, float maxHeig
         
         GraphicsPath path;
         AddRoundedRect(path, (int)bx, (int)by, (int)barW, (int)h, (int)(barW / 2));
+        
+        if (g_Settings.glassBackdrop) {
+            GraphicsPath shadowPath;
+            AddRoundedRect(shadowPath, (int)(bx + 1.0f), (int)(by + 1.0f), (int)barW, (int)h, (int)(barW / 2));
+            g.FillPath(&shadowBrush, &shadowPath);
+        }
+        
         g.FillPath(&brush, &path);
     }
 }
@@ -1905,7 +1923,8 @@ void DrawBackdropCard(Graphics& g, int w, int h, bool isPopup) {
     
     if (g_Settings.glassBackdrop) {
         bool isLight = IsSystemLightMode();
-        Color fillColor = isLight ? Color(40, 255, 255, 255) : Color(30, 20, 20, 20);
+        // Translucent white for light mode, translucent dark gray/black for dark mode to guarantee legibility
+        Color fillColor = isLight ? Color(100, 255, 255, 255) : Color(120, 20, 20, 20);
         SolidBrush fillBrush(fillColor);
         g.FillPath(&fillBrush, &path);
         
@@ -1927,39 +1946,60 @@ void DrawBackdropCard(Graphics& g, int w, int h, bool isPopup) {
 void DrawTextWithShadow(Graphics& g, const wstring& text, Font* font, const RectF& rect, StringFormat* sf, Color textColor) {
     BYTE r = textColor.GetRed(), g_ = textColor.GetGreen(), b = textColor.GetBlue();
     float luminance = 0.299f * r + 0.587f * g_ + 0.114f * b;
-    Color shadowColor = (luminance > 128) ? Color(120, 0, 0, 0) : Color(120, 255, 255, 255);
+    Color shadowColor = (luminance > 128) ? Color(160, 0, 0, 0) : Color(160, 255, 255, 255);
     
-    RectF shadowRect(rect.X + 1.0f, rect.Y + 1.0f, rect.Width, rect.Height);
-    DrawStringWithEmoji(g, text, font, shadowRect, sf, shadowColor);
+    if (g_Settings.glassBackdrop) {
+        RectF shL(rect.X - 1.0f, rect.Y, rect.Width, rect.Height);
+        RectF shR(rect.X + 1.0f, rect.Y, rect.Width, rect.Height);
+        RectF shT(rect.X, rect.Y - 1.0f, rect.Width, rect.Height);
+        RectF shB(rect.X, rect.Y + 1.0f, rect.Width, rect.Height);
+        DrawStringWithEmoji(g, text, font, shL, sf, shadowColor);
+        DrawStringWithEmoji(g, text, font, shR, sf, shadowColor);
+        DrawStringWithEmoji(g, text, font, shT, sf, shadowColor);
+        DrawStringWithEmoji(g, text, font, shB, sf, shadowColor);
+    } else {
+        RectF shadowRect(rect.X + 1.0f, rect.Y + 1.0f, rect.Width, rect.Height);
+        DrawStringWithEmoji(g, text, font, shadowRect, sf, shadowColor);
+    }
     DrawStringWithEmoji(g, text, font, rect, sf, textColor);
 }
 
 void DrawTextWithShadow(Graphics& g, const wstring& text, Font* font, const PointF& pt, Color textColor) {
     BYTE r = textColor.GetRed(), g_ = textColor.GetGreen(), b = textColor.GetBlue();
     float luminance = 0.299f * r + 0.587f * g_ + 0.114f * b;
-    Color shadowColor = (luminance > 128) ? Color(120, 0, 0, 0) : Color(120, 255, 255, 255);
+    Color shadowColor = (luminance > 128) ? Color(160, 0, 0, 0) : Color(160, 255, 255, 255);
     
     StringFormat sf;
     sf.SetAlignment(StringAlignmentNear);
     sf.SetLineAlignment(StringAlignmentNear);
     
-    RectF shadowRect(pt.X + 1.0f, pt.Y + 1.0f, 2000.0f, 100.0f);
-    RectF mainRect(pt.X, pt.Y, 2000.0f, 100.0f);
-    
-    DrawStringWithEmoji(g, text, font, shadowRect, &sf, shadowColor);
-    DrawStringWithEmoji(g, text, font, mainRect, &sf, textColor);
+    if (g_Settings.glassBackdrop) {
+        DrawStringWithEmoji(g, text, font, RectF(pt.X - 1.0f, pt.Y, 2000.0f, 100.0f), &sf, shadowColor);
+        DrawStringWithEmoji(g, text, font, RectF(pt.X + 1.0f, pt.Y, 2000.0f, 100.0f), &sf, shadowColor);
+        DrawStringWithEmoji(g, text, font, RectF(pt.X, pt.Y - 1.0f, 2000.0f, 100.0f), &sf, shadowColor);
+        DrawStringWithEmoji(g, text, font, RectF(pt.X, pt.Y + 1.0f, 2000.0f, 100.0f), &sf, shadowColor);
+    } else {
+        DrawStringWithEmoji(g, text, font, RectF(pt.X + 1.0f, pt.Y + 1.0f, 2000.0f, 100.0f), &sf, shadowColor);
+    }
+    DrawStringWithEmoji(g, text, font, RectF(pt.X, pt.Y, 2000.0f, 100.0f), &sf, textColor);
 }
 
 void DrawTextWithShadowNormal(Graphics& g, const wstring& text, Font* font, const RectF& rect, StringFormat* sf, Color textColor) {
     BYTE r = textColor.GetRed(), g_ = textColor.GetGreen(), b = textColor.GetBlue();
     float luminance = 0.299f * r + 0.587f * g_ + 0.114f * b;
-    Color shadowColor = (luminance > 128) ? Color(120, 0, 0, 0) : Color(120, 255, 255, 255);
+    Color shadowColor = (luminance > 128) ? Color(160, 0, 0, 0) : Color(160, 255, 255, 255);
     
-    RectF shadowRect(rect.X + 1.0f, rect.Y + 1.0f, rect.Width, rect.Height);
     SolidBrush shadowBrush(shadowColor);
     SolidBrush textBrush(textColor);
     
-    g.DrawString(text.c_str(), -1, font, shadowRect, sf, &shadowBrush);
+    if (g_Settings.glassBackdrop) {
+        g.DrawString(text.c_str(), -1, font, RectF(rect.X - 1.0f, rect.Y, rect.Width, rect.Height), sf, &shadowBrush);
+        g.DrawString(text.c_str(), -1, font, RectF(rect.X + 1.0f, rect.Y, rect.Width, rect.Height), sf, &shadowBrush);
+        g.DrawString(text.c_str(), -1, font, RectF(rect.X, rect.Y - 1.0f, rect.Width, rect.Height), sf, &shadowBrush);
+        g.DrawString(text.c_str(), -1, font, RectF(rect.X, rect.Y + 1.0f, rect.Width, rect.Height), sf, &shadowBrush);
+    } else {
+        g.DrawString(text.c_str(), -1, font, RectF(rect.X + 1.0f, rect.Y + 1.0f, rect.Width, rect.Height), sf, &shadowBrush);
+    }
     g.DrawString(text.c_str(), -1, font, rect, sf, &textBrush);
 }
 
@@ -1998,7 +2038,6 @@ void DrawScaledLyricLine(Graphics& g, const wstring& text, Font* baseFont, const
             scaledFont = std::make_unique<Font>(&family, newSize, baseFont->GetStyle(), UnitPixel);
             fontToUse = scaledFont.get();
         }
-        DrawTextWithShadowNormal(g, text, fontToUse, drawRect, &sfWrap, textColor);
     } else {
         // Inactive line: keeps on a single line by scaling down
         sfWrap.SetFormatFlags(StringFormatFlagsNoWrap);
@@ -2012,8 +2051,15 @@ void DrawScaledLyricLine(Graphics& g, const wstring& text, Font* baseFont, const
             scaledFont = std::make_unique<Font>(&family, newSize, baseFont->GetStyle(), UnitPixel);
             fontToUse = scaledFont.get();
         }
-        DrawTextWithShadowNormal(g, text, fontToUse, drawRect, &sfWrap, textColor);
     }
+    
+    // Draw with a clean, crisp, soft dark drop shadow (+1px, +1px offset) instead of a blurry 4-way halo
+    SolidBrush shadowBrush(Color(140, 0, 0, 0));
+    SolidBrush textBrush(textColor);
+    
+    RectF shadowRect(drawRect.X + 1.0f, drawRect.Y + 1.0f, drawRect.Width, drawRect.Height);
+    g.DrawString(text.c_str(), -1, fontToUse, shadowRect, &sfWrap, &shadowBrush);
+    g.DrawString(text.c_str(), -1, fontToUse, drawRect, &sfWrap, &textBrush);
 }
 
 
@@ -2083,8 +2129,15 @@ void DrawMediaPanel(HDC hdc, int width, int height) {
     float gap     = 28.0f * (float)scale;
 
     float pX = (float)startControlX;
+    SolidBrush shadowBrush{ Color((BYTE)(alpha * 0.45f), 0, 0, 0) }; // High contrast drop shadow
+
     if (g_HoverState == 1) g.FillEllipse(&activeBg, pX - circleR, (float)controlY - circleR, circleR*2, circleR*2);
     PointF prev[3] = { {pX+iconW,(float)controlY-(iconH/2)}, {pX+iconW,(float)controlY+(iconH/2)}, {pX,(float)controlY} };
+    if (g_Settings.glassBackdrop) {
+        PointF prevShadow[3] = { {prev[0].X + 1.0f, prev[0].Y + 1.0f}, {prev[1].X + 1.0f, prev[1].Y + 1.0f}, {prev[2].X + 1.0f, prev[2].Y + 1.0f} };
+        g.FillPolygon(&shadowBrush, prevShadow, 3);
+        g.FillRectangle(&shadowBrush, pX + 1.0f, (float)controlY-(iconH/2) + 1.0f, 2.0f*(float)scale, iconH);
+    }
     g.FillPolygon(g_HoverState==1?&hoverBrush:&iconBrush, prev, 3);
     g.FillRectangle(g_HoverState==1?&hoverBrush:&iconBrush, pX, (float)controlY-(iconH/2), 2.0f*(float)scale, iconH);
 
@@ -2092,17 +2145,30 @@ void DrawMediaPanel(HDC hdc, int width, int height) {
     if (g_HoverState == 2) g.FillEllipse(&activeBg, plX - circleR, (float)controlY - circleR, circleR*2, circleR*2);
     if (state.isPlaying) {
         float bW = 3.0f*(float)scale, bH = 14.0f*(float)scale;
+        if (g_Settings.glassBackdrop) {
+            g.FillRectangle(&shadowBrush, plX-(bW+1) + 1.0f, (float)controlY-(bH/2) + 1.0f, bW, bH);
+            g.FillRectangle(&shadowBrush, plX+1 + 1.0f,      (float)controlY-(bH/2) + 1.0f, bW, bH);
+        }
         g.FillRectangle(g_HoverState==2?&hoverBrush:&iconBrush, plX-(bW+1), (float)controlY-(bH/2), bW, bH);
         g.FillRectangle(g_HoverState==2?&hoverBrush:&iconBrush, plX+1,      (float)controlY-(bH/2), bW, bH);
     } else {
         float pW = 10.0f*(float)scale, pH = 16.0f*(float)scale;
         PointF play[3] = { {plX-(pW/2),(float)controlY-(pH/2)}, {plX-(pW/2),(float)controlY+(pH/2)}, {plX+(pW/2),(float)controlY} };
+        if (g_Settings.glassBackdrop) {
+            PointF playShadow[3] = { {play[0].X + 1.0f, play[0].Y + 1.0f}, {play[1].X + 1.0f, play[1].Y + 1.0f}, {play[2].X + 1.0f, play[2].Y + 1.0f} };
+            g.FillPolygon(&shadowBrush, playShadow, 3);
+        }
         g.FillPolygon(g_HoverState==2?&hoverBrush:&iconBrush, play, 3);
     }
 
     float nX = plX + gap;
     if (g_HoverState == 3) g.FillEllipse(&activeBg, nX - circleR, (float)controlY - circleR, circleR*2, circleR*2);
     PointF next[3] = { {nX-iconW,(float)controlY-(iconH/2)}, {nX-iconW,(float)controlY+(iconH/2)}, {nX,(float)controlY} };
+    if (g_Settings.glassBackdrop) {
+        PointF nextShadow[3] = { {next[0].X + 1.0f, next[0].Y + 1.0f}, {next[1].X + 1.0f, next[1].Y + 1.0f}, {next[2].X + 1.0f, next[2].Y + 1.0f} };
+        g.FillPolygon(&shadowBrush, nextShadow, 3);
+        g.FillRectangle(&shadowBrush, nX + 1.0f, (float)controlY-(iconH/2) + 1.0f, 2.0f*(float)scale, iconH);
+    }
     g.FillPolygon(g_HoverState==3?&hoverBrush:&iconBrush, next, 3);
     g.FillRectangle(g_HoverState==3?&hoverBrush:&iconBrush, nX, (float)controlY-(iconH/2), 2.0f*(float)scale, iconH);
 
@@ -2257,7 +2323,11 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
     int drawTextMaxW = midEndX - drawTextX;
 
     if (appIcon) {
+        GraphicsPath iconClip;
+        AddRoundedRect(iconClip, drawIconX, rowY, iconSize, iconSize, iconSize / 2);
+        g.SetClip(&iconClip);
         g.DrawImage(appIcon, drawIconX, rowY, iconSize, iconSize);
+        g.ResetClip();
     }
 
     // Draw scrolling App Name if too long
@@ -2515,26 +2585,44 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
         RectF layoutRect(0, 0, 2000, 100), boundRect;
         g.MeasureString(artistStr.c_str(), -1, &artFont, layoutRect, &boundRect);
         g_ArtistTextWidth = (int)boundRect.Width;
+
+        int pillW = g_ArtistTextWidth + 24;
+        if (pillW > maxW) pillW = maxW;
+        int pillX = (width - pillW) / 2;
+        int pillH = 18;
+        int pillY = rowY;
+
+        GraphicsPath pillPath;
+        AddRoundedRect(pillPath, pillX, pillY, pillW, pillH, 5);
+        Color plateColor = lightMode ? Color(160, 220, 220, 220) : Color(160, 45, 45, 45);
+        SolidBrush plateBr(plateColor);
+        g.FillPath(&plateBr, &pillPath);
         
-        if (g_ArtistTextWidth > maxW) {
+        Color borderColor = lightMode ? Color(60, 255, 255, 255) : Color(30, 255, 255, 255);
+        Pen borderPen(borderColor, 1.0f);
+        g.DrawPath(&borderPen, &pillPath);
+
+        float textYOffset = (float)rowY + (pillH - 13) / 2.0f - 0.5f;
+
+        if (g_ArtistTextWidth > pillW - 16) {
             g_IsArtistScrolling = true;
-            Region clip(Rect(pad, rowY, maxW, 20));
+            Region clip(Rect(pillX + 8, rowY, pillW - 16, pillH));
             g.SetClip(&clip);
             
-            float drawX = (float)(pad - g_ArtistScrollOffset);
-            DrawTextWithShadow(g, artistStr, &artFont, PointF(drawX, (float)rowY), textDim);
-            if (drawX + g_ArtistTextWidth < pad + maxW) {
-                DrawTextWithShadow(g, artistStr, &artFont, PointF(drawX + g_ArtistTextWidth + 40, (float)rowY), textDim);
+            float drawX = (float)(pillX + 8 - g_ArtistScrollOffset);
+            DrawTextWithShadow(g, artistStr, &artFont, PointF(drawX, textYOffset), textMain);
+            if (drawX + g_ArtistTextWidth < pillX + pillW - 8) {
+                DrawTextWithShadow(g, artistStr, &artFont, PointF(drawX + g_ArtistTextWidth + 30, textYOffset), textMain);
             }
             g.ResetClip();
         } else {
             g_IsArtistScrolling = false;
             g_ArtistScrollOffset = 0;
-            RectF artRect((float)pad, (float)rowY, (float)maxW, 18.0f);
+            RectF artRect((float)pillX, textYOffset, (float)pillW, 16.0f);
             StringFormat sf;
             sf.SetAlignment(StringAlignmentCenter);
             sf.SetFormatFlags(StringFormatFlagsNoWrap);
-            DrawTextWithShadow(g, artistStr, &artFont, artRect, &sf, textDim);
+            DrawTextWithShadow(g, artistStr, &artFont, artRect, &sf, textMain);
         }
     }
     rowY += 18;
@@ -2697,22 +2785,31 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
         SolidBrush iconBr{ textMain };
         SolidBrush hoverBr{ Color(255, textMain.GetRed(), textMain.GetGreen(), textMain.GetBlue()) };
         SolidBrush activeBr{ Color(50, textMain.GetRed(), textMain.GetGreen(), textMain.GetBlue()) };
+        
+        Color plateColor = lightMode ? Color(160, 220, 220, 220) : Color(160, 45, 45, 45);
+        SolidBrush plateBr{ plateColor };
 
         // 1. Shuffle
         bool shActive = shuffle;
         Color shColor = shActive ? Color(255, 29, 185, 84) : (g_ExpHoverBtn == 4 ? textMain : textDim);
+        g.FillEllipse(&plateBr, shX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
         if (g_ExpHoverBtn == 4) g.FillEllipse(&activeBr, shX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
         DrawShuffleIcon(g, shX - 8.0f, (float)controlY - 6.0f, 16.0f, 12.0f, shColor, shActive);
 
         // 2. Prev
+        g.FillEllipse(&plateBr, pX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
         if (g_ExpHoverBtn == 1) g.FillEllipse(&activeBr, pX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        PointF prev[3] = { {pX+btnIconW,(float)controlY-(btnIconH/2)}, {pX+btnIconW,(float)controlY+(btnIconH/2)}, {pX,(float)controlY} };
-        g.FillPolygon(g_ExpHoverBtn==1?&hoverBr:&iconBr, prev, 3);
-        g.FillRectangle(g_ExpHoverBtn==1?&hoverBr:&iconBr, pX, (float)controlY-(btnIconH/2), 2.5f*btnScale, btnIconH);
+        {
+            float totalW = btnIconW + 2.5f * btnScale;
+            float iconLeft = pX - totalW / 2.0f;
+            float triLeft = iconLeft + 2.5f * btnScale;
+            PointF prev[3] = { {iconLeft + totalW, (float)controlY - (btnIconH / 2.0f)}, {iconLeft + totalW, (float)controlY + (btnIconH / 2.0f)}, {triLeft, (float)controlY} };
+            g.FillPolygon(g_ExpHoverBtn == 1 ? &hoverBr : &iconBr, prev, 3);
+            g.FillRectangle(g_ExpHoverBtn == 1 ? &hoverBr : &iconBr, iconLeft, (float)controlY - (btnIconH / 2.0f), 2.5f * btnScale, btnIconH);
+        }
 
         // 3. Play/Pause
-        SolidBrush playBgBr{ Color(30, textMain.GetRed(), textMain.GetGreen(), textMain.GetBlue()) };
-        g.FillEllipse(&playBgBr, plX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
+        g.FillEllipse(&plateBr, plX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
         if (g_ExpHoverBtn == 2) g.FillEllipse(&activeBr, plX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
         if (state.isPlaying) {
             float bW = 3.5f*btnScale, bH = 15.0f*btnScale;
@@ -2725,15 +2822,22 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
         }
 
         // 4. Next
+        g.FillEllipse(&plateBr, nX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
         if (g_ExpHoverBtn == 3) g.FillEllipse(&activeBr, nX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        PointF nxt[3] = { {nX-btnIconW,(float)controlY-(btnIconH/2)}, {nX-btnIconW,(float)controlY+(btnIconH/2)}, {nX,(float)controlY} };
-        g.FillPolygon(g_ExpHoverBtn==3?&hoverBr:&iconBr, nxt, 3);
-        g.FillRectangle(g_ExpHoverBtn==3?&hoverBr:&iconBr, nX, (float)controlY-(btnIconH/2), 2.5f*btnScale, btnIconH);
+        {
+            float totalW = btnIconW + 2.5f * btnScale;
+            float iconLeft = nX - totalW / 2.0f;
+            float triRight = iconLeft + btnIconW;
+            PointF nxt[3] = { {iconLeft, (float)controlY - (btnIconH / 2.0f)}, {iconLeft, (float)controlY + (btnIconH / 2.0f)}, {triRight, (float)controlY} };
+            g.FillPolygon(g_ExpHoverBtn == 3 ? &hoverBr : &iconBr, nxt, 3);
+            g.FillRectangle(g_ExpHoverBtn == 3 ? &hoverBr : &iconBr, triRight, (float)controlY - (btnIconH / 2.0f), 2.5f * btnScale, btnIconH);
+        }
 
         // 5. Repeat
         bool rpActive = (repeatMode != winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None);
         bool rpOne = (repeatMode == winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track);
         Color rpColor = rpActive ? Color(255, 29, 185, 84) : (g_ExpHoverBtn == 5 ? textMain : textDim);
+        g.FillEllipse(&plateBr, rpX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
         if (g_ExpHoverBtn == 5) g.FillEllipse(&activeBr, rpX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
         DrawRepeatIcon(g, rpX - 8.0f, (float)controlY - 6.0f, 16.0f, 12.0f, 4.0f, rpColor, rpActive, rpOne);
     }
@@ -2790,7 +2894,7 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
 LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_CREATE:
-            ApplyAcrylicBlur(hwnd, 0x80000000, true); // solid dark tint override for popup
+            ApplyAcrylicBlur(hwnd); // uses default theme-aware glass backdrop path
             return 0;
 
         case WM_ERASEBKGND:
@@ -2847,7 +2951,12 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 
                 if (g_hMediaWindow) {
                     BYTE mediaAlpha = (BYTE)((1.0f - g_Anim.progress) * 255.0f);
-                    SetLayeredWindowAttributes(g_hMediaWindow, 0, mediaAlpha, LWA_ALPHA);
+                    if (g_Settings.glassBackdrop) {
+                        g_MediaWindowAlpha = mediaAlpha;
+                        InvalidateRect(g_hMediaWindow, nullptr, FALSE);
+                    } else {
+                        SetLayeredWindowAttributes(g_hMediaWindow, 0, mediaAlpha, LWA_ALPHA);
+                    }
                     
                     if (g_Anim.progress >= 1.0f && !g_Anim.isAnimating) {
                         ShowWindow(g_hMediaWindow, SW_HIDE);
@@ -2876,7 +2985,12 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                         if (g_Anim.isOpen) {
                             ShowWindow(g_hMediaWindow, SW_HIDE);
                         } else {
-                            SetLayeredWindowAttributes(g_hMediaWindow, 0, 255, LWA_ALPHA);
+                            if (g_Settings.glassBackdrop) {
+                                g_MediaWindowAlpha = 255;
+                                InvalidateRect(g_hMediaWindow, nullptr, FALSE);
+                            } else {
+                                SetLayeredWindowAttributes(g_hMediaWindow, 0, 255, LWA_ALPHA);
+                            }
                             if (!g_IsHiddenByIdle && !g_IsHiddenByNoMedia) {
                                   ShowWindow(g_hMediaWindow, SW_SHOWNOACTIVATE);
                             }
@@ -3570,9 +3684,27 @@ LRESULT CALLBACK MediaWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
             RECT rc; GetClientRect(hwnd, &rc);
+            
             HDC memDC = CreateCompatibleDC(hdc);
-            HBITMAP memBmp = CreateCompatibleBitmap(hdc, rc.right, rc.bottom);
-            HBITMAP old = (HBITMAP)SelectObject(memDC, memBmp);
+            HBITMAP memBmp = nullptr;
+            HBITMAP old = nullptr;
+            void* pBits = nullptr;
+            
+            if (g_Settings.glassBackdrop) {
+                // Create a 32-bit ARGB DIB Section for alpha-translucency
+                BITMAPINFO bmi = {};
+                bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+                bmi.bmiHeader.biWidth = rc.right;
+                bmi.bmiHeader.biHeight = -rc.bottom; // top-down
+                bmi.bmiHeader.biPlanes = 1;
+                bmi.bmiHeader.biBitCount = 32;
+                bmi.bmiHeader.biCompression = BI_RGB;
+                memBmp = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &pBits, nullptr, 0);
+            } else {
+                memBmp = CreateCompatibleBitmap(hdc, rc.right, rc.bottom);
+            }
+            
+            old = (HBITMAP)SelectObject(memDC, memBmp);
             DrawMediaPanel(memDC, rc.right, rc.bottom);
             
             bool isPlaying = false;
@@ -3584,8 +3716,21 @@ LRESULT CALLBACK MediaWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 SetTimer(hwnd, IDT_ANIMATION, 16, NULL);
             }
             
-            BitBlt(hdc, 0, 0, rc.right, rc.bottom, memDC, 0, 0, SRCCOPY);
-            SelectObject(memDC, old); DeleteObject(memBmp); DeleteDC(memDC);
+            if (g_Settings.glassBackdrop) {
+                RECT winRect;
+                GetWindowRect(hwnd, &winRect);
+                POINT ptDst = { winRect.left, winRect.top };
+                SIZE sizeWnd = { rc.right, rc.bottom };
+                POINT ptSrc = { 0, 0 };
+                BLENDFUNCTION blend = { AC_SRC_OVER, 0, g_MediaWindowAlpha, AC_SRC_ALPHA };
+                UpdateLayeredWindow(hwnd, hdc, &ptDst, &sizeWnd, memDC, &ptSrc, 0, &blend, ULW_ALPHA);
+            } else {
+                BitBlt(hdc, 0, 0, rc.right, rc.bottom, memDC, 0, 0, SRCCOPY);
+            }
+            
+            SelectObject(memDC, old);
+            DeleteObject(memBmp);
+            DeleteDC(memDC);
             EndPaint(hwnd, &ps);
             return 0;
         }
@@ -3653,7 +3798,9 @@ void MediaThread() {
             0, 0, g_Settings.width, g_Settings.height,
             NULL, NULL, wc.hInstance, NULL);
     }
-    SetLayeredWindowAttributes(g_hMediaWindow, 0, 255, LWA_ALPHA);
+    if (!g_Settings.glassBackdrop) {
+        SetLayeredWindowAttributes(g_hMediaWindow, 0, 255, LWA_ALPHA);
+    }
     ApplyAcrylicBlur(g_hMediaWindow);
 
     // Create expanded popup (hidden initially)
