@@ -45,6 +45,7 @@ A media controller that uses Windows 11 native DWM styling for a seamless look.
 
 ## Remian Bugs 
 * **Unstable Seeker For Broswer**
+* **After Enable/Disenable You Might Need Restart Mod**
 */
 // ==/WindhawkModReadme==
 
