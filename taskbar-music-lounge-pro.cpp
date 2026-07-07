@@ -1,6 +1,6 @@
 // ==WindhawkMod==
-// @id              taskbar-music-lounge
-// @name            Taskbar Music Lounge
+// @id              taskbar-music-lounge-pro
+// @name            Taskbar Music Lounge Pro
 // @description     A native-style music ticker with media controls, multi-band spectrogram audio visualizer, live taskbar lyric streaming, and expanded Now Playing popup.
 // @version         5.0.4
 // @author          Amit
