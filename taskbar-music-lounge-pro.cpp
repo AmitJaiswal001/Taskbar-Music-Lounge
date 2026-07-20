@@ -1,8 +1,8 @@
 // ==WindhawkMod==
-// @id              taskbar-music-lounge-pro
-// @name            Taskbar Music Lounge Pro
-// @description     A native-style music ticker with media controls, multi-band spectrogram audio visualizer, live taskbar lyric streaming, and expanded Now Playing popup.
-// @version         5.0.4
+// @id              dynamic-media-lounge
+// @name            Dynamic Media Lounge Pro
+// @description     A native-style music ticker with media controls, multi-band spectrogram audio visualizer, ambient album art glow, live taskbar lyric streaming, and expanded Now Playing popup.
+// @version         1.0.0
 // @author          Amit
 // @github          https://github.com/AmitJaiswal001
 // @include         explorer.exe
@@ -11,34 +11,40 @@
 
 // ==WindhawkModReadme==
 /*
-# Taskbar Music Lounge Pro
+# Taskbar Music Lounge
 
 A media controller that uses Windows 11 native DWM styling for a seamless taskbar experience.
 
 
-## ✨ Features
-* **Universal Support:** Smart scanning detects active playback from any app.
-* **Album Art:** Displays current track cover art with rounded corners.
-* **Expanded Now Playing Popup:** Click the compact bar to open a Mac-style popup with:
-  - Large album art, track title, artist
+## ⭐ Features
+* **Universal Support:** Smart WinRT scanning detects active playback from Spotify, Chrome, Firefox, Edge, VLC, Apple Music, Tidal, and all Windows media apps.
+* **Flexible Widget Positions:**
+  - **Taskbar Left:** Classic left taskbar placement.
+  - **Taskbar Tray Icon Left:** Placed right next to your system tray icons.
+  - **Top Notch (Top of Screen):** Attached flush at `y = 0` against the monitor's top bezel, expanding downward smoothly like Apple Dynamic Island.
+* **Bi-Directional Hover Scaling:** Smooth 60fps hover expansion scaling symmetrically in both X and Y directions.
+* **Expanded Now Playing Popup:** Click the compact bar to open a Mac-style expanded card featuring:
+  - Large album art with dynamic ambient glow color extraction
+  - Track title & artist marquee ticker scrolling
   - Source app icon and name
-  - Seekable progress bar (drag to seek)
-  - Shuffle and Repeat controls
-  - Real volume controls (per-app volume adjusting)
-  - Smooth 180ms ease-out open / 120ms close animation
-* **Multiple Media Switcher:** Switch between multiple active media sources (e.g. Spotify, Browser, VLC) via top-row app switcher buttons or a natural hold-and-drag horizontal swipe gesture on the popup card.
-* **Instant Responsive Controls**: Local state caching guarantees instant feedback on play/pause, prev, next, shuffle, and repeat without lag.
-* **Seek Lock Protection**: Smooth timeline extrapolation and browser safety locks prevent the tracker from resetting to 0:00 during active seek actions.
-* **Isomorphic Music Visualizer:** A beautiful bottom-aligned 4-bar visualizer that bounces to the actual audio output peaks of Windows at 60fps and rests when silent. Fully togglable between real-time peak audio and smooth mock visualization.
-* **Fullscreen Mode:** Hides automatically when running full-screen applications.
-* **No Media Auto-Hide:** Hides when nothing is playing, reappears instantly on playback.
-* **Idle Timeout:** Optional auto-hide after pause for X seconds.
-* **Volume:** Scroll over compact bar to adjust volume.
+  - Interactive seekable progress bar (drag to seek)
+  - Full playback controls (Play/Pause, Next, Prev, Shuffle, Repeat Mode, Forward 5s, Rewind 5s)
+  - Per-app volume adjustment slider & mute button
+  - Synchronized live lyrics display with auto-scroll and manual drag-to-scroll
+* **Multiple Active Media Switcher:** Switch between multiple active media sources (e.g. Spotify, Browser, VLC) via top-row app switcher buttons or horizontal swipe gesture on the popup card.
+* **Sound-Reactive Music Visualizer:** Real-time 60fps WASAPI loopback audio peak visualizer that bounces to live sound output and rests flat when silent.
+* **Live Synchronized Lyrics:** Fetches synced lyrics from LRCLIB with real-time highlighted current line tracking.
+* **Windows 11 Acrylic Glass Blur:** Real-time DWM Acrylic blur backdrop composition (`ACCENT_ENABLE_ACRYLICBLURBEHIND`) with auto Light/Dark theme adaptation.
+* **Instant Responsive Controls:** Local state caching guarantees instant button feedback without lag.
+* **Zero-Crash Protection:** Robust exception boundaries around WASAPI and WinRT media sessions handle audio endpoint changes and power state transitions cleanly.
+* **Fullscreen & Idle Auto-Hide:** Automatically hides during full-screen applications or after a configurable idle pause timeout.
+* **Mouse Scroll Volume Control:** Scroll over compact bar to adjust system/app volume directly.
 
 
 ## ⚠️ Requirements
 * **Disable Widgets:** Taskbar Settings -> Widgets -> Off.
 * **Windows 11:** Required for rounded corners and acrylic blur.
+* **Energy Saver / Power Saver:** Turn Off Energy Saver in Windows Settings for full DWM Acrylic Blur.
 * **VLC Media Player SMTC Integration:** VLC does not support Windows system media transport controls by default. To display VLC media in the compact bar, install the open-source `vlc-win10smtc` plugin DLL inside VLC's `plugins\misc\` directory and check the plugin box under Tools > Preferences > Show Settings: All > Interface > Control interfaces.
 
 */
@@ -46,6 +52,16 @@ A media controller that uses Windows 11 native DWM styling for a seamless taskba
 
 // ==WindhawkModSettings==
 /*
+- Position: left
+  $name: Widget Position
+  $options:
+    - left: Taskbar Left
+    - tray_left: Taskbar Tray Icon Left
+    - top_notch: Top Notch (Top of Screen)
+- HoverScale: 106
+  $name: Hover Scale Percentage (100 = Normal, 106 = 106% Hover Scale)
+- EnableAmbientGlow: true
+  $name: Enable Album Art Ambient Glow (Compact Bar & Popup)
 - PanelWidth: 300
   $name: Panel Width
 - PanelHeight: 52
@@ -60,7 +76,7 @@ A media controller that uses Windows 11 native DWM styling for a seamless taskba
   $name: Auto-hide when paused (Seconds). Set 0 to disable.
 - OffsetX: 12
   $name: X Offset
-- OffsetY: 0
+- OffsetY: 2
   $name: Y Offset
 - AutoTheme: true
   $name: Auto Theme
@@ -70,9 +86,9 @@ A media controller that uses Windows 11 native DWM styling for a seamless taskba
   $name: Acrylic Tint Opacity (0-255). Keep 0 for pure glass.
 - UseBlur: false
   $name: Use Acrylic Blur (glass mode)
-- PopupWidth: 320
+- PopupWidth: 340
   $name: Popup Width
-- PopupHeight: 380
+- PopupHeight: 410
   $name: Popup Height
 - PopupFontSize: 15
   $name: Popup Font Size
@@ -80,7 +96,7 @@ A media controller that uses Windows 11 native DWM styling for a seamless taskba
   $name: Popup App Icon Size
 - ShowVisualizer: true
   $name: Show Music Visualizer
-- RealTimeVisualizer: false
+- RealTimeVisualizer: true
   $name: Real-time sound reactive visualizer
 - VisualizerScale: 1.0
   $name: Visualizer Bar Scale
@@ -90,6 +106,10 @@ A media controller that uses Windows 11 native DWM styling for a seamless taskba
   $name: Fetch and Display Lyrics
 - LyricsFontSize: 14
   $name: Lyrics Font Size
+- AutoHideUnsupportedControls: true
+  $name: "Auto-hide unsupported media controls"
+- PopupControls: "shuffle, prev, play/pause, next, repeat"
+  $name: "Custom popup control buttons (comma-separated list of: play/pause, next, prev, shuffle, repeat, forward, rewind)"
 */
 // ==/WindhawkModSettings==
 
@@ -129,7 +149,11 @@ using namespace winrt;
 using namespace Windows::Media::Control;
 using namespace Windows::Storage::Streams;
 
+extern HWND g_hMediaWindow;
 extern HWND g_hExpandedWindow;
+void CalculateWidgetPos(int currentWidth, int currentHeight, POINT& outPt);
+void CalculatePopupPos(POINT& outPt, int& slideOffset);
+Gdiplus::Color ExtractDominantColor(Gdiplus::Bitmap* bmp);
 
 // Define missing IAudioMeterInformation interface for MinGW compatibility
 struct IAudioMeterInformation : public IUnknown
@@ -197,6 +221,12 @@ typedef HWND(WINAPI* pCreateWindowInBand)(
 // ============================================================
 // Settings
 // ============================================================
+enum WidgetPosition {
+    POS_LEFT = 0,
+    POS_TRAY_LEFT = 1,
+    POS_TOP_NOTCH = 2
+};
+
 struct ModSettings {
     int    width         = 300;
     int    height        = 52;
@@ -205,23 +235,38 @@ struct ModSettings {
     bool   hideFullscreen = false;
     int    idleTimeout   = 0;
     int    offsetX       = 12;
-    int    offsetY       = 0;
+    int    offsetY       = 2;
     bool   autoTheme     = true;
     DWORD  manualTextColor = 0xFFFFFFFF;
     int    bgOpacity     = 0;
-    int    popupWidth    = 320;
-    int    popupHeight   = 380;
+    int    popupWidth    = 340;
+    int    popupHeight   = 410;
     int    popupFontSize = 15;
     int    popupIconSize = 28;
     bool   showVisualizer  = true;
-    bool   realTimeVisualizer = false;
+    bool   realTimeVisualizer = true;
     double visualizerScale = 1.0;
     int    visualizerHeight = 14;
     bool   glassBackdrop = false;
     bool   useBlur       = false;
     bool   fetchLyrics = true;
     int    lyricsFontSize = 14;
+    bool   autoHideUnsupportedControls = true;
+    std::wstring popupControls;
+    std::vector<int> controlButtons;
+    WidgetPosition position = POS_LEFT;
+    int    hoverScale       = 106;
+    bool   enableAmbientGlow = true;
 } g_Settings;
+
+Color g_DominantArtColor = Color(255, 120, 120, 140);
+
+struct HoverAnimState {
+    bool isHovered = false;
+    float progress = 0.0f;
+} g_HoverAnim;
+
+#define IDT_ANIM_HOVER 1005
 
 // ============================================================
 // Animation State
@@ -793,6 +838,8 @@ static float EaseOutCubic(float t) {
 // Volume API
 // ============================================================
 bool IsSessionMatch(const wstring& mediaAppId, const wstring& mediaAppName, const wstring& sessionExeName) {
+    if (sessionExeName.empty()) return false;
+
     wstring appId = mediaAppId;
     for (auto& c : appId) c = towlower(c);
     wstring appName = mediaAppName;
@@ -800,112 +847,129 @@ bool IsSessionMatch(const wstring& mediaAppId, const wstring& mediaAppName, cons
     wstring exeName = sessionExeName;
     for (auto& c : exeName) c = towlower(c);
 
+    // Support real-time visualization for python audx streams
+    if (exeName.find(L"python") != wstring::npos) {
+        if (appId.find(L"audx") != wstring::npos || appName.find(L"audx") != wstring::npos ||
+            appId.find(L"python") != wstring::npos || appName.find(L"python") != wstring::npos) {
+            return true;
+        }
+    }
+
     size_t dot = exeName.rfind(L".exe");
     if (dot != wstring::npos) {
         exeName = exeName.substr(0, dot);
     }
 
-    if (appId.find(exeName) != wstring::npos || exeName.find(appId) != wstring::npos) return true;
-    if (appName.find(exeName) != wstring::npos || exeName.find(appName) != wstring::npos) return true;
+    if (exeName.empty()) return false;
+
+    if (!appId.empty() && (appId.find(exeName) != wstring::npos || exeName.find(appId) != wstring::npos)) return true;
+    if (!appName.empty() && (appName.find(exeName) != wstring::npos || exeName.find(appName) != wstring::npos)) return true;
     return false;
 }
 
 ISimpleAudioVolume* GetActiveSessionVolume() {
-    IMMDeviceEnumerator* pEnum = nullptr;
-    HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
-                                  __uuidof(IMMDeviceEnumerator), (void**)&pEnum);
-    if (FAILED(hr)) return nullptr;
+    try {
+        IMMDeviceEnumerator* pEnum = nullptr;
+        HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                                      __uuidof(IMMDeviceEnumerator), (void**)&pEnum);
+        if (FAILED(hr)) return nullptr;
 
-    IMMDevice* pDevice = nullptr;
-    hr = pEnum->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
-    pEnum->Release();
-    if (FAILED(hr)) return nullptr;
+        IMMDevice* pDevice = nullptr;
+        hr = pEnum->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
+        pEnum->Release();
+        if (FAILED(hr)) return nullptr;
 
-    IAudioSessionManager2* pManager = nullptr;
-    hr = pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, (void**)&pManager);
-    pDevice->Release();
-    if (FAILED(hr)) return nullptr;
+        IAudioSessionManager2* pManager = nullptr;
+        hr = pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, (void**)&pManager);
+        pDevice->Release();
+        if (FAILED(hr)) return nullptr;
 
-    IAudioSessionEnumerator* pSessionEnum = nullptr;
-    hr = pManager->GetSessionEnumerator(&pSessionEnum);
-    pManager->Release();
-    if (FAILED(hr)) return nullptr;
+        IAudioSessionEnumerator* pSessionEnum = nullptr;
+        hr = pManager->GetSessionEnumerator(&pSessionEnum);
+        pManager->Release();
+        if (FAILED(hr)) return nullptr;
 
-    int count = 0;
-    pSessionEnum->GetCount(&count);
+        int count = 0;
+        pSessionEnum->GetCount(&count);
 
-    wstring mediaAppId, mediaAppName;
-    {
-        lock_guard<mutex> guard(g_MediaState.lock);
-        mediaAppId = g_MediaState.appId;
-        mediaAppName = g_MediaState.appName;
-    }
-
-    ISimpleAudioVolume* pTargetVolume = nullptr;
-
-    for (int i = 0; i < count; i++) {
-        IAudioSessionControl* pSessionControl = nullptr;
-        if (SUCCEEDED(pSessionEnum->GetSession(i, &pSessionControl))) {
-            IAudioSessionControl2* pSessionControl2 = nullptr;
-            if (SUCCEEDED(pSessionControl->QueryInterface(__uuidof(IAudioSessionControl2), (void**)&pSessionControl2))) {
-                bool matched = false;
-                DWORD pid = 0;
-                if (SUCCEEDED(pSessionControl2->GetProcessId(&pid)) && pid != 0) {
-                    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-                    if (hProcess) {
-                        wchar_t path[MAX_PATH];
-                        DWORD size = MAX_PATH;
-                        if (QueryFullProcessImageNameW(hProcess, 0, path, &size)) {
-                            wstring exePath = path;
-                            size_t lastSlash = exePath.rfind(L'\\');
-                            wstring exeName = (lastSlash != wstring::npos) ? exePath.substr(lastSlash + 1) : exePath;
-
-                            if (IsSessionMatch(mediaAppId, mediaAppName, exeName)) {
-                                matched = true;
-                            }
-                        }
-                        CloseHandle(hProcess);
-                    }
-                }
-
-                // Fallback: If pid match failed, match using instance identifier (robust match even for Admin apps)
-                if (!matched) {
-                    LPWSTR pIdStr = nullptr;
-                    if (SUCCEEDED(pSessionControl2->GetSessionInstanceIdentifier(&pIdStr)) && pIdStr) {
-                        wstring idStr = pIdStr;
-                        CoTaskMemFree(pIdStr);
-                        for (auto& c : idStr) c = towlower(c);
-                        
-                        wstring lowerAppId = mediaAppId;
-                        for (auto& c : lowerAppId) c = towlower(c);
-                        wstring lowerAppName = mediaAppName;
-                        for (auto& c : lowerAppName) c = towlower(c);
-                        
-                        if (!lowerAppId.empty() && idStr.find(lowerAppId) != wstring::npos) matched = true;
-                        else if (!lowerAppName.empty() && idStr.find(lowerAppName) != wstring::npos) matched = true;
-                        else if (lowerAppId.find(L"chrome") != wstring::npos && idStr.find(L"chrome.exe") != wstring::npos) matched = true;
-                        else if (lowerAppId.find(L"spotify") != wstring::npos && idStr.find(L"spotify.exe") != wstring::npos) matched = true;
-                        else if (lowerAppId.find(L"firefox") != wstring::npos && idStr.find(L"firefox.exe") != wstring::npos) matched = true;
-                        else if (lowerAppId.find(L"vlc") != wstring::npos && idStr.find(L"vlc.exe") != wstring::npos) matched = true;
-                    }
-                }
-
-                if (matched) {
-                    hr = pSessionControl->QueryInterface(__uuidof(ISimpleAudioVolume), (void**)&pTargetVolume);
-                    if (SUCCEEDED(hr)) {
-                        pSessionControl2->Release();
-                        pSessionControl->Release();
-                        break;
-                    }
-                }
-                pSessionControl2->Release();
-            }
-            pSessionControl->Release();
+        wstring mediaAppId, mediaAppName;
+        {
+            lock_guard<mutex> guard(g_MediaState.lock);
+            mediaAppId = g_MediaState.appId;
+            mediaAppName = g_MediaState.appName;
         }
-    }
 
-    pSessionEnum->Release();
-    return pTargetVolume;
+        ISimpleAudioVolume* pTargetVolume = nullptr;
+
+        for (int i = 0; i < count; i++) {
+            IAudioSessionControl* pSessionControl = nullptr;
+            if (SUCCEEDED(pSessionEnum->GetSession(i, &pSessionControl))) {
+                IAudioSessionControl2* pSessionControl2 = nullptr;
+                if (SUCCEEDED(pSessionControl->QueryInterface(__uuidof(IAudioSessionControl2), (void**)&pSessionControl2))) {
+                    bool matched = false;
+                    DWORD pid = 0;
+                    if (SUCCEEDED(pSessionControl2->GetProcessId(&pid)) && pid != 0) {
+                        HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+                        if (hProcess) {
+                            wchar_t path[MAX_PATH];
+                            DWORD size = MAX_PATH;
+                            if (QueryFullProcessImageNameW(hProcess, 0, path, &size)) {
+                                wstring exePath = path;
+                                size_t lastSlash = exePath.rfind(L'\\');
+                                wstring exeName = (lastSlash != wstring::npos) ? exePath.substr(lastSlash + 1) : exePath;
+
+                                if (IsSessionMatch(mediaAppId, mediaAppName, exeName)) {
+                                    matched = true;
+                                }
+                            }
+                            CloseHandle(hProcess);
+                        }
+                    }
+
+                    // Fallback: If pid match failed, match using instance identifier (robust match even for Admin apps)
+                    if (!matched) {
+                        LPWSTR pIdStr = nullptr;
+                        if (SUCCEEDED(pSessionControl2->GetSessionInstanceIdentifier(&pIdStr)) && pIdStr) {
+                            wstring idStr = pIdStr;
+                            CoTaskMemFree(pIdStr);
+                            for (auto& c : idStr) c = towlower(c);
+                            
+                            wstring lowerAppId = mediaAppId;
+                            for (auto& c : lowerAppId) c = towlower(c);
+                            wstring lowerAppName = mediaAppName;
+                            for (auto& c : lowerAppName) c = towlower(c);
+                            
+                            if (!lowerAppId.empty() && idStr.find(lowerAppId) != wstring::npos) matched = true;
+                            else if (!lowerAppName.empty() && idStr.find(lowerAppName) != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"chrome") != wstring::npos && idStr.find(L"chrome.exe") != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"spotify") != wstring::npos && idStr.find(L"spotify.exe") != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"firefox") != wstring::npos && idStr.find(L"firefox.exe") != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"vlc") != wstring::npos && idStr.find(L"vlc.exe") != wstring::npos) matched = true;
+                            else if ((lowerAppId.find(L"audx") != wstring::npos || lowerAppName.find(L"audx") != wstring::npos ||
+                                      lowerAppId.find(L"python") != wstring::npos || lowerAppName.find(L"python") != wstring::npos) &&
+                                     (idStr.find(L"python.exe") != wstring::npos || idStr.find(L"pythonw.exe") != wstring::npos)) matched = true;
+                        }
+                    }
+
+                    if (matched) {
+                        hr = pSessionControl->QueryInterface(__uuidof(ISimpleAudioVolume), (void**)&pTargetVolume);
+                        if (SUCCEEDED(hr)) {
+                            pSessionControl2->Release();
+                            pSessionControl->Release();
+                            break;
+                        }
+                    }
+                    pSessionControl2->Release();
+                }
+                pSessionControl->Release();
+            }
+        }
+
+        pSessionEnum->Release();
+        return pTargetVolume;
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 void InitVolumeAPI() {
@@ -981,6 +1045,98 @@ void SetVolume(float level) {
     }
 }
 
+void ToggleMute() {
+    g_IsMuted = !g_IsMuted;
+    ISimpleAudioVolume* pAppVol = GetActiveSessionVolume();
+    if (pAppVol) {
+        pAppVol->SetMute(g_IsMuted ? TRUE : FALSE, nullptr);
+        pAppVol->Release();
+    } else {
+        if (g_pAudioVolume) {
+            g_pAudioVolume->SetMute(g_IsMuted ? TRUE : FALSE, nullptr);
+        }
+    }
+}
+
+std::vector<int> ParseControlButtons(const wstring& str) {
+    std::vector<int> result;
+    std::wstringstream ss(str);
+    std::wstring item;
+    while (std::getline(ss, item, L',')) {
+        size_t first = item.find_first_not_of(L" \t\r\n");
+        if (first == std::wstring::npos) continue;
+        size_t last = item.find_last_not_of(L" \t\r\n");
+        std::wstring s = item.substr(first, (last - first + 1));
+        
+        for (auto& c : s) c = towlower(c);
+        
+        if (s == L"play" || s == L"play/pause" || s == L"playpause") {
+            result.push_back(2);
+        } else if (s == L"next" || s == L"next track" || s == L"nexttrack") {
+            result.push_back(3);
+        } else if (s == L"prev" || s == L"previous" || s == L"prev track" || s == L"prevtrack") {
+            result.push_back(1);
+        } else if (s == L"shuffle" || s == L"toggle shuffle" || s == L"toggleshuffle") {
+            result.push_back(4);
+        } else if (s == L"repeat" || s == L"toggle repeat" || s == L"togglerepeat") {
+            result.push_back(5);
+        } else if (s == L"forward" || s == L"forward 5s" || s == L"forward5s" || s == L"forward 5" || s == L"forward5") {
+            result.push_back(11);
+        } else if (s == L"rewind" || s == L"rewind 5s" || s == L"rewind5s" || s == L"rewind 5" || s == L"rewind5") {
+            result.push_back(12);
+        }
+    }
+    if (result.empty()) {
+        result = { 4, 1, 2, 3, 5 };
+    }
+    return result;
+}
+
+std::vector<int> GetActiveControlButtons(const MediaState& state) {
+    if (!g_Settings.autoHideUnsupportedControls) {
+        return g_Settings.controlButtons;
+    }
+    std::vector<int> active;
+    for (int btnId : g_Settings.controlButtons) {
+        bool supported = true;
+        if (btnId == 1) supported = state.canGoPrev;
+        else if (btnId == 2) supported = state.canPlayPause;
+        else if (btnId == 3) supported = state.canGoNext;
+        else if (btnId == 4) supported = state.canShuffle;
+        else if (btnId == 5) supported = state.canRepeat;
+        else if (btnId == 11 || btnId == 12) supported = g_Timeline.canSeek;
+        
+        if (supported) {
+            active.push_back(btnId);
+        }
+    }
+    if (active.empty()) {
+        active.push_back(2);
+    }
+    return active;
+}
+
+int GetDynamicPopupWidth() {
+    return g_Settings.popupWidth;
+}
+
+void SendSeekCommand(double seconds);
+
+void SeekRelative(double offsetSec) {
+    if (!g_Timeline.valid || !g_Timeline.canSeek) return;
+    double newPos = GetLivePosition() + offsetSec;
+    if (newPos < 0.0) newPos = 0.0;
+    if (newPos > g_Timeline.durationSec) newPos = g_Timeline.durationSec;
+    
+    g_Timeline.positionSec = newPos;
+    g_TimelineLastUpdated = GetTickCount64();
+    g_LastSeekTime = GetTickCount64();
+    g_PendingSeekPosition = newPos;
+    g_SeekPending = true;
+    
+    SendSeekCommand(newPos);
+}
+
 // ============================================================
 // Settings
 // ============================================================
@@ -1036,10 +1192,36 @@ void LoadSettings() {
     g_Settings.visualizerScale = max(0.5, min(3.0, g_Settings.visualizerScale));
     g_Settings.visualizerHeight = Wh_GetIntSetting(L"VisualizerHeight");
 
+    g_Settings.autoHideUnsupportedControls = Wh_GetIntSetting(L"AutoHideUnsupportedControls") != 0;
+    PCWSTR controlsStr = Wh_GetStringSetting(L"PopupControls");
+    if (controlsStr) {
+        g_Settings.popupControls = controlsStr;
+        Wh_FreeStringSetting(controlsStr);
+    } else {
+        g_Settings.popupControls = L"shuffle, prev, play/pause, next, repeat";
+    }
+    g_Settings.controlButtons = ParseControlButtons(g_Settings.popupControls);
+
+    PCWSTR posStr = Wh_GetStringSetting(L"Position");
+    if (posStr) {
+        if (wcscmp(posStr, L"tray_left") == 0) g_Settings.position = POS_TRAY_LEFT;
+        else if (wcscmp(posStr, L"top_notch") == 0) g_Settings.position = POS_TOP_NOTCH;
+        else g_Settings.position = POS_LEFT;
+        Wh_FreeStringSetting(posStr);
+    } else {
+        g_Settings.position = POS_LEFT;
+    }
+
+    g_Settings.hoverScale = Wh_GetIntSetting(L"HoverScale");
+    if (g_Settings.hoverScale < 100) g_Settings.hoverScale = 100;
+    if (g_Settings.hoverScale > 200) g_Settings.hoverScale = 200;
+
+    g_Settings.enableAmbientGlow = Wh_GetIntSetting(L"EnableAmbientGlow") != 0;
+
     if (g_Settings.width  < 100) g_Settings.width  = 300;
     if (g_Settings.height < 24)  g_Settings.height = 52;
-    if (g_Settings.popupWidth < 200) g_Settings.popupWidth = 320;
-    if (g_Settings.popupHeight < 200) g_Settings.popupHeight = 380;
+    if (g_Settings.popupWidth < 200) g_Settings.popupWidth = 340;
+    if (g_Settings.popupHeight < 200) g_Settings.popupHeight = 410;
     if (g_Settings.fontSize < 6) g_Settings.fontSize = 15;
     if (g_Settings.popupFontSize < 6) g_Settings.popupFontSize = 15;
     if (g_Settings.popupIconSize < 8) g_Settings.popupIconSize = 28;
@@ -1062,10 +1244,25 @@ Bitmap* StreamToBitmap(IRandomAccessStreamWithContentType const& stream) {
                 reinterpret_cast<IUnknown*>(abi),
                 IID_PPV_ARGS(&nativeStream)))) {
             if (nativeStream) {
-                Bitmap* bmp = Bitmap::FromStream(nativeStream);
+                Bitmap* tempBmp = Bitmap::FromStream(nativeStream);
+                Bitmap* selfContainedBmp = nullptr;
+                if (tempBmp && tempBmp->GetLastStatus() == Ok) {
+                    int w = tempBmp->GetWidth();
+                    int h = tempBmp->GetHeight();
+                    if (w > 0 && h > 0) {
+                        selfContainedBmp = new Bitmap(w, h, PixelFormat32bppARGB);
+                        if (selfContainedBmp && selfContainedBmp->GetLastStatus() == Ok) {
+                            Graphics g(selfContainedBmp);
+                            g.DrawImage(tempBmp, 0, 0, w, h);
+                        } else {
+                            delete selfContainedBmp;
+                            selfContainedBmp = nullptr;
+                        }
+                    }
+                }
+                delete tempBmp;
                 nativeStream->Release();
-                if (bmp && bmp->GetLastStatus() == Ok) return bmp;
-                delete bmp;
+                return selfContainedBmp;
             }
         }
     } catch (...) {}
@@ -1125,94 +1322,98 @@ HWND FindTopLevelWindowByPid(DWORD pid) {
 }
 
 DWORD GetActiveSessionPid() {
-    wstring mediaAppId;
-    wstring mediaAppName;
-    {
-        lock_guard<mutex> guard(g_MediaState.lock);
-        mediaAppId = g_MediaState.appId;
-        mediaAppName = g_MediaState.appName;
-    }
-    if (mediaAppId.empty() && mediaAppName.empty()) return 0;
+    try {
+        wstring mediaAppId;
+        wstring mediaAppName;
+        {
+            lock_guard<mutex> guard(g_MediaState.lock);
+            mediaAppId = g_MediaState.appId;
+            mediaAppName = g_MediaState.appName;
+        }
+        if (mediaAppId.empty() && mediaAppName.empty()) return 0;
 
-    HRESULT hr;
-    IMMDeviceEnumerator* pEnumerator = nullptr;
-    hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&pEnumerator);
-    if (FAILED(hr)) return 0;
+        HRESULT hr;
+        IMMDeviceEnumerator* pEnumerator = nullptr;
+        hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&pEnumerator);
+        if (FAILED(hr)) return 0;
 
-    IMMDevice* pDevice = nullptr;
-    hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
-    pEnumerator->Release();
-    if (FAILED(hr)) return 0;
+        IMMDevice* pDevice = nullptr;
+        hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
+        pEnumerator->Release();
+        if (FAILED(hr)) return 0;
 
-    IAudioSessionManager2* pManager = nullptr;
-    hr = pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, (void**)&pManager);
-    pDevice->Release();
-    if (FAILED(hr)) return 0;
+        IAudioSessionManager2* pManager = nullptr;
+        hr = pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, (void**)&pManager);
+        pDevice->Release();
+        if (FAILED(hr)) return 0;
 
-    IAudioSessionEnumerator* pSessionEnum = nullptr;
-    hr = pManager->GetSessionEnumerator(&pSessionEnum);
-    pManager->Release();
-    if (FAILED(hr)) return 0;
+        IAudioSessionEnumerator* pSessionEnum = nullptr;
+        hr = pManager->GetSessionEnumerator(&pSessionEnum);
+        pManager->Release();
+        if (FAILED(hr)) return 0;
 
-    int count = 0;
-    pSessionEnum->GetCount(&count);
-    DWORD targetPid = 0;
+        int count = 0;
+        pSessionEnum->GetCount(&count);
+        DWORD targetPid = 0;
 
-    for (int i = 0; i < count; i++) {
-        IAudioSessionControl* pSessionControl = nullptr;
-        if (SUCCEEDED(pSessionEnum->GetSession(i, &pSessionControl))) {
-            IAudioSessionControl2* pSessionControl2 = nullptr;
-            if (SUCCEEDED(pSessionControl->QueryInterface(__uuidof(IAudioSessionControl2), (void**)&pSessionControl2))) {
-                DWORD pid = 0;
-                if (SUCCEEDED(pSessionControl2->GetProcessId(&pid)) && pid != 0) {
-                    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-                    if (hProcess) {
-                        WCHAR path[MAX_PATH];
-                        DWORD size = MAX_PATH;
-                        if (QueryFullProcessImageName(hProcess, 0, path, &size)) {
-                            wstring exePath = path;
-                            wstring exeName = exePath.substr(exePath.rfind(L'\\') + 1);
-                            if (IsSessionMatch(mediaAppId, mediaAppName, exeName)) {
-                                targetPid = pid;
-                                CloseHandle(hProcess);
-                                pSessionControl2->Release();
-                                pSessionControl->Release();
-                                break;
+        for (int i = 0; i < count; i++) {
+            IAudioSessionControl* pSessionControl = nullptr;
+            if (SUCCEEDED(pSessionEnum->GetSession(i, &pSessionControl))) {
+                IAudioSessionControl2* pSessionControl2 = nullptr;
+                if (SUCCEEDED(pSessionControl->QueryInterface(__uuidof(IAudioSessionControl2), (void**)&pSessionControl2))) {
+                    DWORD pid = 0;
+                    if (SUCCEEDED(pSessionControl2->GetProcessId(&pid)) && pid != 0) {
+                        HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+                        if (hProcess) {
+                            WCHAR path[MAX_PATH];
+                            DWORD size = MAX_PATH;
+                            if (QueryFullProcessImageName(hProcess, 0, path, &size)) {
+                                wstring exePath = path;
+                                wstring exeName = exePath.substr(exePath.rfind(L'\\') + 1);
+                                if (IsSessionMatch(mediaAppId, mediaAppName, exeName)) {
+                                    targetPid = pid;
+                                    CloseHandle(hProcess);
+                                    pSessionControl2->Release();
+                                    pSessionControl->Release();
+                                    break;
+                                }
+                            }
+                            CloseHandle(hProcess);
+                        }
+                    }
+                    if (targetPid == 0) {
+                        LPWSTR pIdStr = nullptr;
+                        if (SUCCEEDED(pSessionControl2->GetSessionInstanceIdentifier(&pIdStr)) && pIdStr) {
+                            wstring idStr = pIdStr;
+                            CoTaskMemFree(pIdStr);
+                            for (auto& c : idStr) c = towlower(c);
+                            wstring lowerAppId = mediaAppId;
+                            for (auto& c : lowerAppId) c = towlower(c);
+                            wstring lowerAppName = mediaAppName;
+                            for (auto& c : lowerAppName) c = towlower(c);
+                            bool matched = false;
+                            if (!lowerAppId.empty() && idStr.find(lowerAppId) != wstring::npos) matched = true;
+                            else if (!lowerAppName.empty() && idStr.find(lowerAppName) != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"chrome") != wstring::npos && idStr.find(L"chrome.exe") != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"spotify") != wstring::npos && idStr.find(L"spotify.exe") != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"firefox") != wstring::npos && idStr.find(L"firefox.exe") != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"vlc") != wstring::npos && idStr.find(L"vlc.exe") != wstring::npos) matched = true;
+                            if (matched) {
+                                pSessionControl2->GetProcessId(&targetPid);
                             }
                         }
-                        CloseHandle(hProcess);
                     }
+                    pSessionControl2->Release();
                 }
-                if (targetPid == 0) {
-                    LPWSTR pIdStr = nullptr;
-                    if (SUCCEEDED(pSessionControl2->GetSessionInstanceIdentifier(&pIdStr)) && pIdStr) {
-                        wstring idStr = pIdStr;
-                        CoTaskMemFree(pIdStr);
-                        for (auto& c : idStr) c = towlower(c);
-                        wstring lowerAppId = mediaAppId;
-                        for (auto& c : lowerAppId) c = towlower(c);
-                        wstring lowerAppName = mediaAppName;
-                        for (auto& c : lowerAppName) c = towlower(c);
-                        bool matched = false;
-                        if (!lowerAppId.empty() && idStr.find(lowerAppId) != wstring::npos) matched = true;
-                        else if (!lowerAppName.empty() && idStr.find(lowerAppName) != wstring::npos) matched = true;
-                        else if (lowerAppId.find(L"chrome") != wstring::npos && idStr.find(L"chrome.exe") != wstring::npos) matched = true;
-                        else if (lowerAppId.find(L"spotify") != wstring::npos && idStr.find(L"spotify.exe") != wstring::npos) matched = true;
-                        else if (lowerAppId.find(L"firefox") != wstring::npos && idStr.find(L"firefox.exe") != wstring::npos) matched = true;
-                        else if (lowerAppId.find(L"vlc") != wstring::npos && idStr.find(L"vlc.exe") != wstring::npos) matched = true;
-                        if (matched) {
-                            pSessionControl2->GetProcessId(&targetPid);
-                        }
-                    }
-                }
-                pSessionControl2->Release();
+                pSessionControl->Release();
+                if (targetPid != 0) break;
             }
-            pSessionControl->Release();
-            if (targetPid != 0) break;
         }
+        pSessionEnum->Release();
+        return targetPid;
+    } catch (...) {
+        return 0;
     }
-    pSessionEnum->Release();
-    return targetPid;
 }
 
 void RedirectToMediaSource() {
@@ -1661,6 +1862,9 @@ void UpdateMediaInfoBackground() {
                         g_MediaState.albumArt = nullptr;
                     }
                     g_MediaState.albumArt = newArt;
+                    if (newArt) {
+                        g_DominantArtColor = ExtractDominantColor(newArt);
+                    }
                 }
 
                 if (appChanged) {
@@ -1890,40 +2094,52 @@ DWORD GetCurrentTextColor() {
     return g_Settings.manualTextColor;
 }
 
-void ApplyAcrylicBlur(HWND hwnd, DWORD tintOverride = 0, bool useTintOverride = false) {
+void ApplyAcrylicBlur(HWND hwnd, int width = 0, int height = 0) {
     DWM_WINDOW_CORNER_PREFERENCE pref = DWMWCP_ROUND;
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &pref, sizeof(pref));
 
-    bool isMediaWnd = (hwnd == g_hMediaWindow);
-
-    // 1. Force light backdrop when GlassBackdrop is enabled for macOS clear glass style, otherwise use dark mode based on theme
-    BOOL darkMode = (g_Settings.glassBackdrop && !isMediaWnd) ? FALSE : !IsSystemLightMode();
+    BOOL darkMode = !IsSystemLightMode();
     DwmSetWindowAttribute(hwnd, 20, &darkMode, sizeof(darkMode)); // DWMWA_USE_IMMERSIVE_DARK_MODE
 
-    // 2. Enable Windows 11 official Acrylic Backdrop if GlassBackdrop is active, otherwise solid none
-    DWORD systemBackdropType = (g_Settings.glassBackdrop && !isMediaWnd) ? 3 : 1; // 3 = Acrylic, 1 = None (Opaque)
-    HRESULT hr = DwmSetWindowAttribute(hwnd, 38, &systemBackdropType, sizeof(systemBackdropType));
+    DWORD backdropType = g_Settings.useBlur ? 3 : 0; // 3 = Acrylic, 0 = Disabled (Solid)
+    DwmSetWindowAttribute(hwnd, 38, &backdropType, sizeof(backdropType)); // DWMWA_SYSTEMBACKDROP_TYPE
 
-    // 3. Fallback for Windows 10 SetWindowCompositionAttribute (only run if native Win11 backdrop fails or is not glass)
-    if (FAILED(hr) || !g_Settings.glassBackdrop || isMediaWnd) {
-        HMODULE hUser = GetModuleHandle(L"user32.dll");
-        if (hUser) {
-            auto SetComp = (pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
-            if (SetComp) {
-                DWORD tint = useTintOverride ? tintOverride :
-                             ((g_Settings.glassBackdrop && !isMediaWnd) ? (IsSystemLightMode() ? 0x01FFFFFF : 0x01000000) :
-                             (g_Settings.autoTheme ? (IsSystemLightMode() ? 0x60FFFFFF : 0x60000000)
-                                                   : ((g_Settings.bgOpacity << 24) | 0xFFFFFF)));
-                ACCENT_POLICY policy;
-                if (g_Settings.glassBackdrop && !isMediaWnd) {
-                    policy = { ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, tint, 0 };
-                } else {
-                    policy = { ACCENT_DISABLED, 0, 0, 0 };
-                }
-                WINDOWCOMPOSITIONATTRIBDATA data = { WCA_ACCENT_POLICY, &policy, sizeof(policy) };
-                SetComp(hwnd, &data);
+    HMODULE hUser = GetModuleHandle(L"user32.dll");
+    if (hUser) {
+        auto SetComp = (pSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
+        if (SetComp) {
+            ACCENT_POLICY policy = {};
+            if (g_Settings.useBlur) {
+                DWORD gradient = darkMode ? 0x08101010 : 0x08FFFFFF;
+                policy = { ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, gradient, 0 };
+            } else {
+                policy = { ACCENT_DISABLED, 0, 0, 0 };
             }
+            WINDOWCOMPOSITIONATTRIBDATA data = { WCA_ACCENT_POLICY, &policy, sizeof(policy) };
+            SetComp(hwnd, &data);
         }
+    }
+
+    if (g_Settings.useBlur) {
+        RECT rc = {};
+        GetWindowRect(hwnd, &rc);
+        int w = (width > 0) ? width : (rc.right - rc.left);
+        int h = (height > 0) ? height : (rc.bottom - rc.top);
+        if (w > 0 && h > 0) {
+            HRGN hRgn = CreateRoundRectRgn(0, 0, w, h, 28, 28);
+            DWM_BLURBEHIND bb = {};
+            bb.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
+            bb.fEnable = TRUE;
+            bb.hRgnBlur = hRgn;
+            DwmEnableBlurBehindWindow(hwnd, &bb);
+            DeleteObject(hRgn);
+        }
+    } else {
+        DWM_BLURBEHIND bb = {};
+        bb.dwFlags = DWM_BB_ENABLE;
+        bb.fEnable = FALSE;
+        bb.hRgnBlur = NULL;
+        DwmEnableBlurBehindWindow(hwnd, &bb);
     }
 }
 
@@ -1954,10 +2170,115 @@ wstring FormatTime(double sec) {
 // ============================================================
 std::thread g_CaptureThread;
 std::atomic<bool> g_CaptureRunning{ false };
-float g_VisRealtimeTargets[4] = { 0.15f, 0.15f, 0.15f, 0.15f };
-float g_VisPeaks[4] = { 0.15f, 0.15f, 0.15f, 0.15f };
-float g_VisPeakVel[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+float g_VisRealtimeTargets[8] = { 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f };
+float g_VisPeaks[8] = { 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f };
+float g_VisPeakVel[8] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 std::mutex g_VisMutex;
+
+float GetActiveSessionPeak() {
+    try {
+        wstring mediaAppId, mediaAppName;
+        {
+            lock_guard<mutex> guard(g_MediaState.lock);
+            mediaAppId = g_MediaState.appId;
+            mediaAppName = g_MediaState.appName;
+        }
+        if (mediaAppId.empty() && mediaAppName.empty()) return 0.0f;
+
+        IMMDeviceEnumerator* pEnum = nullptr;
+        HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                                      __uuidof(IMMDeviceEnumerator), (void**)&pEnum);
+        if (FAILED(hr)) return 0.0f;
+
+        IMMDevice* pDevice = nullptr;
+        hr = pEnum->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
+        pEnum->Release();
+        if (FAILED(hr)) return 0.0f;
+
+        IAudioSessionManager2* pManager = nullptr;
+        hr = pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, (void**)&pManager);
+        pDevice->Release();
+        if (FAILED(hr)) return 0.0f;
+
+        IAudioSessionEnumerator* pSessionEnum = nullptr;
+        hr = pManager->GetSessionEnumerator(&pSessionEnum);
+        pManager->Release();
+        if (FAILED(hr)) return 0.0f;
+
+        int count = 0;
+        pSessionEnum->GetCount(&count);
+        float peak = 0.0f;
+
+        for (int i = 0; i < count; i++) {
+            IAudioSessionControl* pSessionControl = nullptr;
+            if (SUCCEEDED(pSessionEnum->GetSession(i, &pSessionControl))) {
+                IAudioSessionControl2* pSessionControl2 = nullptr;
+                if (SUCCEEDED(pSessionControl->QueryInterface(__uuidof(IAudioSessionControl2), (void**)&pSessionControl2))) {
+                    bool matched = false;
+                    DWORD pid = 0;
+                    if (SUCCEEDED(pSessionControl2->GetProcessId(&pid)) && pid != 0) {
+                        HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+                        if (hProcess) {
+                            wchar_t path[MAX_PATH];
+                            DWORD size = MAX_PATH;
+                            if (QueryFullProcessImageNameW(hProcess, 0, path, &size)) {
+                                wstring exePath = path;
+                                size_t lastSlash = exePath.rfind(L'\\');
+                                wstring exeName = (lastSlash != wstring::npos) ? exePath.substr(lastSlash + 1) : exePath;
+
+                                if (IsSessionMatch(mediaAppId, mediaAppName, exeName)) {
+                                    matched = true;
+                                }
+                            }
+                            CloseHandle(hProcess);
+                        }
+                    }
+
+                    if (!matched) {
+                        LPWSTR pIdStr = nullptr;
+                        if (SUCCEEDED(pSessionControl2->GetSessionInstanceIdentifier(&pIdStr)) && pIdStr) {
+                            wstring idStr = pIdStr;
+                            CoTaskMemFree(pIdStr);
+                            for (auto& c : idStr) c = towlower(c);
+                            wstring lowerAppId = mediaAppId;
+                            for (auto& c : lowerAppId) c = towlower(c);
+                            wstring lowerAppName = mediaAppName;
+                            for (auto& c : lowerAppName) c = towlower(c);
+                            
+                            if (!lowerAppId.empty() && idStr.find(lowerAppId) != wstring::npos) matched = true;
+                            else if (!lowerAppName.empty() && idStr.find(lowerAppName) != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"chrome") != wstring::npos && idStr.find(L"chrome.exe") != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"spotify") != wstring::npos && idStr.find(L"spotify.exe") != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"firefox") != wstring::npos && idStr.find(L"firefox.exe") != wstring::npos) matched = true;
+                            else if (lowerAppId.find(L"vlc") != wstring::npos && idStr.find(L"vlc.exe") != wstring::npos) matched = true;
+                            else if ((lowerAppId.find(L"audx") != wstring::npos || lowerAppName.find(L"audx") != wstring::npos ||
+                                      lowerAppId.find(L"python") != wstring::npos || lowerAppName.find(L"python") != wstring::npos) &&
+                                     (idStr.find(L"python.exe") != wstring::npos || idStr.find(L"pythonw.exe") != wstring::npos)) matched = true;
+                        }
+                    }
+
+                    if (matched) {
+                        IAudioMeterInformation* pMeter = nullptr;
+                        const IID IID_IAudioMeterInformation = {0xC02216F6, 0x8C67, 0x4B5B, {0x9D, 0x00, 0xD0, 0x08, 0xE7, 0x3E, 0x00, 0x64}};
+                        if (SUCCEEDED(pSessionControl->QueryInterface(IID_IAudioMeterInformation, (void**)&pMeter))) {
+                            pMeter->GetPeakValue(&peak);
+                            pMeter->Release();
+                            pSessionControl2->Release();
+                            pSessionControl->Release();
+                            break;
+                        }
+                    }
+                    pSessionControl2->Release();
+                }
+                pSessionControl->Release();
+            }
+        }
+        pSessionEnum->Release();
+        return peak;
+    } catch (...) {
+        return 0.0f;
+    }
+}
 
 void AudioCaptureThread() {
     Wh_Log(L"[Taskbar Music Lounge] AudioCaptureThread started");
@@ -1966,8 +2287,8 @@ void AudioCaptureThread() {
         Wh_Log(L"[Taskbar Music Lounge] CoInitializeEx failed: 0x%08X", hrCo);
     }
     
-    float targetFreqs[4] = { 80.0f, 350.0f, 1500.0f, 4000.0f };
-    const int N = 256;
+    float targetFreqs[8] = { 60.0f, 150.0f, 350.0f, 700.0f, 1500.0f, 3000.0f, 5000.0f, 9000.0f };
+    const int N = 1024;
     std::vector<float> sampleRing(N, 0.0f);
     int ringIdx = 0;
 
@@ -2087,6 +2408,7 @@ void AudioCaptureThread() {
         
         bool deviceActive = true;
         int logThrottle = 0;
+        ULONGLONG lastAudioTime = GetTickCount64();
         
         while (g_CaptureRunning && deviceActive) {
             Sleep(10);
@@ -2098,6 +2420,7 @@ void AudioCaptureThread() {
             hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, nullptr, nullptr);
             if (SUCCEEDED(hr)) {
                 if (numFramesAvailable > 0) {
+                    lastAudioTime = GetTickCount64();
                     if (logThrottle++ < 10) {
                         Wh_Log(L"[Taskbar Music Lounge] Capture active: received %d frames", numFramesAvailable);
                     }
@@ -2134,16 +2457,29 @@ void AudioCaptureThread() {
                         }
                     }
                     pCaptureClient->ReleaseBuffer(numFramesAvailable);
+                } else {
+                    if (GetTickCount64() - lastAudioTime > 100) {
+                        for (int i = 0; i < 128; i++) {
+                            sampleRing[ringIdx] = 0.0f;
+                            ringIdx = (ringIdx + 1) % N;
+                        }
+                    }
                 }
             } else {
                 Wh_Log(L"[Taskbar Music Lounge] GetBuffer failed: 0x%08X", hr);
                 if (hr == AUDCLNT_E_DEVICE_INVALIDATED || hr == AUDCLNT_E_SERVICE_NOT_RUNNING) {
                     deviceActive = false;
                 }
+                if (GetTickCount64() - lastAudioTime > 100) {
+                    for (int i = 0; i < 128; i++) {
+                        sampleRing[ringIdx] = 0.0f;
+                        ringIdx = (ringIdx + 1) % N;
+                    }
+                }
             }
             
-            float magnitudes[4] = { 0 };
-            for (int b = 0; b < 4; b++) {
+            float magnitudes[8] = { 0 };
+            for (int b = 0; b < 8; b++) {
                 float freq = targetFreqs[b];
                 float k = freq * N / sampleRate;
                 float omega = 2.0f * 3.14159265f * k / N;
@@ -2159,10 +2495,10 @@ void AudioCaptureThread() {
                 magnitudes[b] = sqrt(real * real + imag * imag) / N;
             }
             
-            float scales[4] = { 25.0f, 35.0f, 60.0f, 150.0f };
+            float scales[8] = { 20.0f, 25.0f, 35.0f, 50.0f, 80.0f, 120.0f, 160.0f, 220.0f };
             {
                 std::lock_guard<std::mutex> guard(g_VisMutex);
-                for (int b = 0; b < 4; b++) {
+                for (int b = 0; b < 8; b++) {
                     float targetVal = magnitudes[b] * scales[b];
                     targetVal = max(0.15f, min(1.0f, targetVal));
                     g_VisRealtimeTargets[b] = targetVal;
@@ -2182,8 +2518,8 @@ void AudioCaptureThread() {
     Wh_Log(L"[Taskbar Music Lounge] AudioCaptureThread stopped");
 }
 
-float g_VisBars[4] = { 0.15f, 0.15f, 0.15f, 0.15f };
-float g_VisTargets[4] = { 0.15f, 0.15f, 0.15f, 0.15f };
+float g_VisBars[8] = { 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f };
+float g_VisTargets[8] = { 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f, 0.15f };
 
 void UpdateVisualizerFrame() {
     bool isPlaying = false;
@@ -2200,20 +2536,29 @@ void UpdateVisualizerFrame() {
     }
 
     if (g_Settings.realTimeVisualizer) {
-        if (masterPeak > 0.01f || isPlaying) {
+        if (isPlaying) {
+            float sessionPeak = GetActiveSessionPeak();
             std::lock_guard<std::mutex> guard(g_VisMutex);
-            for (int i = 0; i < 4; i++) {
-                g_VisTargets[i] = g_VisRealtimeTargets[i];
-                g_VisBars[i] += (g_VisTargets[i] - g_VisBars[i]) * 0.4f;
+            for (int i = 0; i < 8; i++) {
+                float target = g_VisRealtimeTargets[i];
+                if (sessionPeak < 0.005f) {
+                    target = 0.15f;
+                }
+                g_VisTargets[i] = target;
+                if (target > g_VisBars[i]) {
+                    g_VisBars[i] += (target - g_VisBars[i]) * 0.55f; // Rise fast
+                } else {
+                    g_VisBars[i] += (target - g_VisBars[i]) * 0.15f; // Decay slow
+                }
             }
         } else {
-            for (int i = 0; i < 4; i++) {
-                g_VisBars[i] += (0.15f - g_VisBars[i]) * 0.25f;
+            for (int i = 0; i < 8; i++) {
+                g_VisBars[i] += (0.15f - g_VisBars[i]) * 0.15f;
             }
         }
     } else {
         // Old randomized mock visualization
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 8; i++) {
             if (isPlaying) {
                 if (fabs(g_VisBars[i] - g_VisTargets[i]) < 0.05f) {
                     g_VisTargets[i] = 0.2f + (float)(rand() % 80) / 100.0f;
@@ -2227,7 +2572,7 @@ void UpdateVisualizerFrame() {
 
     // Visualizer peak gravity physics
     const float gravity = 0.0018f;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 8; i++) {
         float h = g_VisBars[i];
         if (h > g_VisPeaks[i]) {
             g_VisPeaks[i] = h;
@@ -2257,14 +2602,21 @@ void UpdateVisualizerFrame() {
 }
 
 bool IsVisualizerActive() {
-    for (int i = 0; i < 4; i++) {
+    bool isPlaying = false;
+    {
+        lock_guard<mutex> guard(g_MediaState.lock);
+        isPlaying = g_MediaState.isPlaying;
+    }
+    if (!isPlaying) return false;
+
+    for (int i = 0; i < 8; i++) {
         if (g_VisBars[i] > 0.16f) return true;
     }
     return false;
 }
 
 void DrawVisualizer(Graphics& g, float x, float y, float maxWidth, float maxHeight, Color color, float barScale = 1.0f) {
-    int numBars = 4;
+    int numBars = 8;
     float gap = 2.0f * barScale;
     float barW = 3.0f * barScale;
     
@@ -2389,31 +2741,98 @@ void DrawRepeatIcon(Graphics& g, float x, float y, float w, float h, float r, Co
 // ============================================================
 // Draw Backdrop Card & Text Shadow Helpers
 // ============================================================
+void AddNotchRect(GraphicsPath& path, int x, int y, int w, int h, int r) {
+    int d = r * 2;
+    path.AddLine(x, y, x + w, y);
+    path.AddArc(x + w - d, y + h - d, d, d, 0, 90);
+    path.AddArc(x, y + h - d, d, d, 90, 90);
+    path.CloseFigure();
+}
+
+void AddNotchPopupRect(GraphicsPath& path, int x, int y, int w, int h, int r) {
+    int d = r * 2;
+    path.AddLine(x, y, x + w, y);
+    path.AddArc(x + w - d, y + h - d, d, d, 0, 90);
+    path.AddArc(x, y + h - d, d, d, 90, 90);
+    path.CloseFigure();
+}
+
+Color ExtractDominantColor(Bitmap* bmp) {
+    if (!bmp) return Color(255, 120, 120, 140);
+    UINT w = bmp->GetWidth();
+    UINT h = bmp->GetHeight();
+    if (w == 0 || h == 0) return Color(255, 120, 120, 140);
+
+    UINT sumR = 0, sumG = 0, sumB = 0, count = 0;
+    UINT stepX = max(1u, w / 12);
+    UINT stepY = max(1u, h / 12);
+
+    for (UINT y = 0; y < h; y += stepY) {
+        for (UINT x = 0; x < w; x += stepX) {
+            Color pixel;
+            if (bmp->GetPixel(x, y, &pixel) == Ok) {
+                BYTE r = pixel.GetRed(), g = pixel.GetGreen(), b = pixel.GetBlue();
+                BYTE maxC = max(r, max(g, b));
+                BYTE minC = min(r, min(g, b));
+                if (maxC > 30 && minC < 240) {
+                    sumR += r; sumG += g; sumB += b;
+                    count++;
+                }
+            }
+        }
+    }
+    if (count == 0) return Color(255, 120, 120, 140);
+    return Color(255, (BYTE)(sumR / count), (BYTE)(sumG / count), (BYTE)(sumB / count));
+}
+
+void DrawAmbientGlow(Graphics& g, int w, int h, bool isPopup) {
+    if (!g_Settings.enableAmbientGlow) return;
+    Color artColor;
+    {
+        lock_guard<mutex> guard(g_MediaState.lock);
+        artColor = g_DominantArtColor;
+    }
+    BYTE glowAlpha = isPopup ? 35 : 45;
+    Color glowCenter(glowAlpha, artColor.GetRed(), artColor.GetGreen(), artColor.GetBlue());
+    Color glowOuter(0, artColor.GetRed(), artColor.GetGreen(), artColor.GetBlue());
+
+    GraphicsPath glowPath;
+    int margin = isPopup ? 14 : 10;
+    AddRoundedRect(glowPath, -margin, -margin, w + margin * 2, h + margin * 2, isPopup ? 24 : 16);
+
+    PathGradientBrush pgb(&glowPath);
+    pgb.SetCenterColor(glowCenter);
+    int count = 1;
+    pgb.SetSurroundColors(&glowOuter, &count);
+    g.FillPath(&pgb, &glowPath);
+}
+
 void DrawBackdropCard(Graphics& g, int w, int h, bool isPopup) {
     GraphicsPath path;
     int cornerRadius = isPopup ? 16 : 12;
-    AddRoundedRect(path, 0, 0, w, h, cornerRadius);
-    
-    if (g_Settings.glassBackdrop) {
-        bool isLight = IsSystemLightMode();
-        // Translucent white for light mode, translucent dark gray/black for dark mode to guarantee legibility
-        Color fillColor = isLight ? Color(100, 255, 255, 255) : Color(120, 20, 20, 20);
-        SolidBrush fillBrush(fillColor);
-        g.FillPath(&fillBrush, &path);
-        
-        Color borderColor = isLight ? Color(80, 255, 255, 255) : Color(40, 255, 255, 255);
-        Pen borderPen(borderColor, 1.0f);
-        g.DrawPath(&borderPen, &path);
+    if (!isPopup && g_Settings.position == POS_TOP_NOTCH) {
+        AddNotchRect(path, 0, 0, w, h, 14);
+    } else if (isPopup && g_Settings.position == POS_TOP_NOTCH) {
+        AddNotchPopupRect(path, 0, 0, w, h, 16);
     } else {
-        bool isLight = IsSystemLightMode();
-        Color fillColor = isLight ? Color(255, 240, 240, 240) : Color(255, 20, 20, 20);
-        SolidBrush fillBrush(fillColor);
-        g.FillPath(&fillBrush, &path);
-        
-        Color borderColor = isLight ? Color(255, 200, 200, 200) : Color(255, 45, 45, 45);
-        Pen borderPen(borderColor, 1.0f);
-        g.DrawPath(&borderPen, &path);
+        AddRoundedRect(path, 0, 0, w, h, cornerRadius);
     }
+    
+    DrawAmbientGlow(g, w, h, isPopup);
+
+    bool isLight = IsSystemLightMode();
+    Color fillColor;
+    if (g_Settings.useBlur) {
+        fillColor = isLight ? Color(20, 255, 255, 255) : Color(20, 12, 12, 12);
+    } else {
+        fillColor = isLight ? Color(255, 245, 245, 245) : Color(255, 20, 20, 20); // 100% Solid Dark/Light theme mode!
+    }
+    SolidBrush fillBrush(fillColor);
+    g.FillPath(&fillBrush, &path);
+    
+    Color borderColor = isLight ? Color(60, 255, 255, 255) : Color(45, 255, 255, 255);
+    Pen borderPen(borderColor, 1.0f);
+    g.DrawPath(&borderPen, &path);
 }
 
 void DrawTextWithShadow(Graphics& g, const wstring& text, Font* font, const RectF& rect, StringFormat* sf, Color textColor) {
@@ -2665,7 +3084,7 @@ void DrawMediaPanel(HDC hdc, int width, int height) {
     if (g_Settings.showVisualizer && width > g_Settings.height + 40) {
         float vScale = (float)g_Settings.visualizerScale;
         float vHeight = (float)g_Settings.visualizerHeight;
-        float vWidth = 4 * 3.0f * vScale + 3 * 2.0f * vScale;
+        float vWidth = 8 * 3.0f * vScale + 7 * 2.0f * vScale;
         
         // Far right placement (fixed)
         float vy = (height - vHeight) / 2.0f;
@@ -2677,8 +3096,8 @@ void DrawMediaPanel(HDC hdc, int width, int height) {
 
     int textMaxW = width - textX - visWidth - 8;
 
-    wstring fullText = state.title;
-    if (!state.artist.empty()) fullText += L" \u2022 " + state.artist;
+    wstring fullText = state.hasMedia ? state.title : L"Music Lounge \u2728";
+    if (state.hasMedia && !state.artist.empty()) fullText += L" \u2022 " + state.artist;
 
     bool streamActive = false;
     {
@@ -2792,6 +3211,49 @@ void DrawMediaPanel(HDC hdc, int width, int height) {
     }
 }
 
+void DrawSeekRelativeIcon(Graphics& g, float cx, float cy, float size, bool forward, Color color) {
+    Pen pen(color, 1.5f);
+    SolidBrush brush(color);
+    
+    float r = size * 0.45f;
+    RectF rect(cx - r, cy - r, r * 2.0f, r * 2.0f);
+    if (forward) {
+        g.DrawArc(&pen, rect, -220.0f, 290.0f);
+        
+        float angle = 70.0f * 3.14159265f / 180.0f;
+        float ax = cx + r * cos(angle);
+        float ay = cy + r * sin(angle);
+        
+        PointF pts[3] = {
+            { ax, ay - 3.5f },
+            { ax + 4.5f, ay + 0.5f },
+            { ax - 0.5f, ay + 4.0f }
+        };
+        g.FillPolygon(&brush, pts, 3);
+    } else {
+        g.DrawArc(&pen, rect, -70.0f, 290.0f);
+        
+        float angle = 220.0f * 3.14159265f / 180.0f;
+        float ax = cx + r * cos(angle);
+        float ay = cy + r * sin(angle);
+        
+        PointF pts[3] = {
+            { ax, ay - 3.5f },
+            { ax - 4.5f, ay + 0.5f },
+            { ax + 0.5f, ay + 4.0f }
+        };
+        g.FillPolygon(&brush, pts, 3);
+    }
+    
+    FontFamily ff(FONT_NAME, nullptr);
+    Font font(&ff, size * 0.42f, FontStyleBold, UnitPixel);
+    StringFormat sf;
+    sf.SetAlignment(StringAlignmentCenter);
+    sf.SetLineAlignment(StringAlignmentCenter);
+    RectF textRect(cx - r + 0.5f, cy - r + 0.5f, r * 2.0f, r * 2.0f);
+    g.DrawString(L"5", -1, &font, textRect, &sf, &brush);
+}
+
 // ============================================================
 // Draw Expanded Popup  (Mac-style Now Playing card)
 // ============================================================
@@ -2876,8 +3338,8 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
     int midEndX   = (sessionCount > 1) ? width - pad - 24 - 6 : width - pad;
     int midWidth  = midEndX - midStartX;
 
-    wstring appLabel = state.appName.empty() ? L"Now Playing" : state.appName;
-    appLabel += L" \u2197";
+    wstring appLabel = state.hasMedia ? (state.appName.empty() ? L"Now Playing" : state.appName) : L"Music Lounge \u2728";
+    if (state.hasMedia) appLabel += L" \u2197";
 
     if (sessionCount > 1) {
         wchar_t countBuf[32];
@@ -2943,7 +3405,7 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
     if (IsVisualizerActive()) {
         float vScale = 1.0f;
         float vHeight = 12.0f;
-        float vWidth = 4 * 3.0f * vScale + 3 * 2.0f * vScale;
+        float vWidth = 8 * 3.0f * vScale + 7 * 2.0f * vScale;
         float vx = (float)(width - visMargin - vWidth);
         float vy = (float)rowY + (iconSize - vHeight) / 2.0f;
         DrawVisualizer(g, vx, vy, vWidth, vHeight, textMain, vScale);
@@ -2955,7 +3417,7 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
 
     // ---- Row 2: Large Album Art or Lyrics (centered) ----
     int artSize = width - pad * 2;
-    int maxArtSize = height - rowY - 180;
+    int maxArtSize = height - rowY - 230;
     if (maxArtSize < 80) maxArtSize = 80;
     artSize = min(artSize, maxArtSize);
     int artX = (width - artSize) / 2;
@@ -3135,7 +3597,7 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
                 sfBadge.SetAlignment(StringAlignmentCenter);
                 sfBadge.SetLineAlignment(StringAlignmentCenter);
                 RectF badgeRect((float)badgeX, (float)badgeY, (float)badgeW, (float)badgeH);
-                DrawStringWithEmoji(g, L"Lyrics 💬", &badgeFont, badgeRect, &sfBadge, Color(255, 255, 255, 255));
+                DrawStringWithEmoji(g, L"Lyrics \U0001F4AC", &badgeFont, badgeRect, &sfBadge, Color(255, 255, 255, 255));
             }
         } else {
             SolidBrush ph{ Color(60, 128, 128, 128) };
@@ -3196,7 +3658,10 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
         g.MeasureString(artistStr.c_str(), -1, &artFont, layoutRect, &boundRect);
         g_ArtistTextWidth = (int)boundRect.Width;
 
-        int pillW = g_ArtistTextWidth + 24;
+        int pillW = g_ArtistTextWidth + 16;
+        int maxPillW = maxW / 2;
+        if (maxPillW < 140) maxPillW = 140;
+        if (pillW > maxPillW) pillW = maxPillW;
         if (pillW > maxW) pillW = maxW;
         int pillX = (width - pillW) / 2;
         
@@ -3256,7 +3721,7 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
 
         bool hasLrc = false;
         bool activeLrc = false;
-        wstring lrcStatus = L"Lyrics 💬";
+        wstring lrcStatus = L"Lyrics \U0001F4AC";
         
         wstring currentTitle;
         {
@@ -3271,14 +3736,14 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
                 if (g_Lyrics.hasLyrics) {
                     hasLrc = true;
                     activeLrc = g_Lyrics.showLyrics;
-                    lrcStatus = L"Lyrics 💬";
+                    lrcStatus = L"Lyrics \U0001F4AC";
                 } else if (g_Lyrics.lines.empty() && g_Lyrics.plainText.empty() && g_Lyrics.trackTitle.empty()) {
-                    lrcStatus = L"Loading... ⏳";
+                    lrcStatus = L"Loading... \u23F3";
                 } else {
-                    lrcStatus = L"No Lyrics 🚫";
+                    lrcStatus = L"No Lyrics \U0001F6AB";
                 }
             } else {
-                lrcStatus = L"Loading... ⏳";
+                lrcStatus = L"Loading... \u23F3";
             }
         }
 
@@ -3308,7 +3773,7 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
         sfBtn.SetAlignment(StringAlignmentCenter);
         sfBtn.SetLineAlignment(StringAlignmentCenter);
         
-        wstring toggleText = streamActive ? L"Live Ticker 🟢" : L"Live Ticker ⚪";
+        wstring toggleText = streamActive ? L"Live Ticker \U0001F7E2" : L"Live Ticker \u26AA";
         RectF tRect((float)toggleX, (float)btnY, (float)btnW, (float)btnH);
         DrawTextWithShadow(g, toggleText, &btnFont, tRect, &sfBtn, tTxtColor);
 
@@ -3351,7 +3816,8 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
     // ---- Row 5: Seeker bar ----
     {
         int seekTrackH = 4;
-        int seekY = rowY + 18;
+        rowY += 24; // Seeker offset
+        int seekY = rowY;
         int seekX = pad;
         int seekW = width - pad * 2;
 
@@ -3408,97 +3874,98 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
                      PointF((float)(seekX + seekW - durBound.Width), (float)(seekY + seekTrackH + 3)),
                      textDim);
     }
-    rowY += 28;
+    rowY += 36; // Seeker row height
 
     // Reset Translate offset for static panel UI controls (buttons, volume slider)
     g.ResetTransform();
 
-    // ---- Row 6: Shuffle / Prev / Play-Pause / Next / Repeat controls ----
+    // ---- Row 6: Custom Control buttons (shuffle, prev, play/pause, next, repeat, forward, rewind) ----
     {
-        int controlY = rowY + 16;
+        std::vector<int> active = GetActiveControlButtons(state);
+        int numButtons = (int)active.size();
+        
+        rowY += 20; // Control offset
+        int controlY = rowY;
         float btnScale = 1.2f;
         float btnCircR = 14.0f * btnScale;
         float btnIconW = 9.0f  * btnScale;
         float btnIconH = 13.0f * btnScale;
-        float btnGap   = 36.0f * btnScale;
-
-        float centerX = width / 2.0f;
-        float shX  = centerX - btnGap * 2.0f;
-        float pX   = centerX - btnGap;
-        float plX  = centerX;
-        float nX   = centerX + btnGap;
-        float rpX  = centerX + btnGap * 2.0f;
-
+        float btnGap = 36.0f * btnScale; // Comfortable fixed spacing to prevent overlapping
+        
+        float totalWidth = (numButtons - 1) * btnGap;
+        float startX = (width - totalWidth) / 2.0f;
+        
         SolidBrush iconBr{ textMain };
         SolidBrush hoverBr{ Color(255, textMain.GetRed(), textMain.GetGreen(), textMain.GetBlue()) };
         SolidBrush activeBr{ Color(50, textMain.GetRed(), textMain.GetGreen(), textMain.GetBlue()) };
         
         Color plateColor = lightMode ? Color(160, 220, 220, 220) : Color(160, 45, 45, 45);
         SolidBrush plateBr{ plateColor };
-
-        // 1. Shuffle
-        bool shActive = shuffle && state.canShuffle;
-        Color shColor = state.canShuffle ? (shActive ? Color(255, 29, 185, 84) : (g_ExpHoverBtn == 4 ? textMain : textDim)) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
-        g.FillEllipse(&plateBr, shX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        if (g_ExpHoverBtn == 4 && state.canShuffle) g.FillEllipse(&activeBr, shX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        DrawShuffleIcon(g, shX - 8.0f, (float)controlY - 6.0f, 16.0f, 12.0f, shColor, shActive);
-
-        // 2. Prev
-        Color prevBtnColor = state.canGoPrev ? (g_ExpHoverBtn == 1 ? textMain : textDim) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
-        SolidBrush prevBtnBrush(prevBtnColor);
-        g.FillEllipse(&plateBr, pX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        if (g_ExpHoverBtn == 1 && state.canGoPrev) g.FillEllipse(&activeBr, pX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        {
-            float totalW = btnIconW + 2.5f * btnScale;
-            float iconLeft = pX - totalW / 2.0f;
-            float triLeft = iconLeft + 2.5f * btnScale;
-            PointF prev[3] = { {iconLeft + totalW, (float)controlY - (btnIconH / 2.0f)}, {iconLeft + totalW, (float)controlY + (btnIconH / 2.0f)}, {triLeft, (float)controlY} };
-            g.FillPolygon(&prevBtnBrush, prev, 3);
-            g.FillRectangle(&prevBtnBrush, iconLeft, (float)controlY - (btnIconH / 2.0f), 2.5f * btnScale, btnIconH);
+        
+        for (int i = 0; i < numButtons; i++) {
+            int btnId = active[i];
+            float btnX = startX + i * btnGap;
+            
+            // Draw button plate backdrop
+            g.FillEllipse(&plateBr, btnX - btnCircR, (float)controlY - btnCircR, btnCircR * 2, btnCircR * 2);
+            if (g_ExpHoverBtn == btnId) {
+                g.FillEllipse(&activeBr, btnX - btnCircR, (float)controlY - btnCircR, btnCircR * 2, btnCircR * 2);
+            }
+            
+            if (btnId == 4) { // Shuffle
+                bool shActive = shuffle && state.canShuffle;
+                Color shColor = state.canShuffle ? (shActive ? Color(255, 29, 185, 84) : (g_ExpHoverBtn == 4 ? textMain : textDim)) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
+                DrawShuffleIcon(g, btnX - 8.0f, (float)controlY - 6.0f, 16.0f, 12.0f, shColor, shActive);
+            } else if (btnId == 1) { // Prev
+                Color prevBtnColor = state.canGoPrev ? (g_ExpHoverBtn == 1 ? textMain : textDim) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
+                SolidBrush prevBtnBrush(prevBtnColor);
+                float totalW = btnIconW + 2.5f * btnScale;
+                float iconLeft = btnX - totalW / 2.0f;
+                float triLeft = iconLeft + 2.5f * btnScale;
+                PointF prev[3] = { {iconLeft + totalW, (float)controlY - (btnIconH / 2.0f)}, {iconLeft + totalW, (float)controlY + (btnIconH / 2.0f)}, {triLeft, (float)controlY} };
+                g.FillPolygon(&prevBtnBrush, prev, 3);
+                g.FillRectangle(&prevBtnBrush, iconLeft, (float)controlY - (btnIconH / 2.0f), 2.5f * btnScale, btnIconH);
+            } else if (btnId == 2) { // Play/Pause
+                Color playBtnColor = state.canPlayPause ? (g_ExpHoverBtn == 2 ? textMain : textDim) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
+                SolidBrush playBtnBrush(playBtnColor);
+                if (state.isPlaying) {
+                    float bW = 3.5f * btnScale, bH = 15.0f * btnScale;
+                    g.FillRectangle(&playBtnBrush, btnX - (bW + 1.5f), (float)controlY - (bH / 2), bW, bH);
+                    g.FillRectangle(&playBtnBrush, btnX + 1.5f, (float)controlY - (bH / 2), bW, bH);
+                } else {
+                    float pW = 11.0f * btnScale, pH = 17.0f * btnScale;
+                    PointF play[3] = { {btnX - (pW / 2), (float)controlY - (pH / 2)}, {btnX - (pW / 2), (float)controlY + (pH / 2)}, {btnX + (pW / 2), (float)controlY} };
+                    g.FillPolygon(&playBtnBrush, play, 3);
+                }
+            } else if (btnId == 3) { // Next
+                Color nextBtnColor = state.canGoNext ? (g_ExpHoverBtn == 3 ? textMain : textDim) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
+                SolidBrush nextBtnBrush(nextBtnColor);
+                float totalW = btnIconW + 2.5f * btnScale;
+                float iconLeft = btnX - totalW / 2.0f;
+                float triRight = iconLeft + btnIconW;
+                PointF nxt[3] = { {iconLeft, (float)controlY - (btnIconH / 2.0f)}, {iconLeft, (float)controlY + (btnIconH / 2.0f)}, {triRight, (float)controlY} };
+                g.FillPolygon(&nextBtnBrush, nxt, 3);
+                g.FillRectangle(&nextBtnBrush, triRight, (float)controlY - (btnIconH / 2.0f), 2.5f * btnScale, btnIconH);
+            } else if (btnId == 5) { // Repeat
+                bool rpActive = (repeatMode != winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None) && state.canRepeat;
+                bool rpOne = (repeatMode == winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track) && state.canRepeat;
+                Color rpColor = state.canRepeat ? (rpActive ? Color(255, 29, 185, 84) : (g_ExpHoverBtn == 5 ? textMain : textDim)) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
+                DrawRepeatIcon(g, btnX - 8.0f, (float)controlY - 6.0f, 16.0f, 12.0f, 4.0f, rpColor, rpActive, rpOne);
+            } else if (btnId == 11) { // Forward 5s
+                Color fwdColor = g_Timeline.canSeek ? (g_ExpHoverBtn == 11 ? textMain : textDim) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
+                DrawSeekRelativeIcon(g, btnX, (float)controlY, 20.0f, true, fwdColor);
+            } else if (btnId == 12) { // Rewind 5s
+                Color rwdColor = g_Timeline.canSeek ? (g_ExpHoverBtn == 12 ? textMain : textDim) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
+                DrawSeekRelativeIcon(g, btnX, (float)controlY, 20.0f, false, rwdColor);
+            }
         }
-
-        // 3. Play/Pause
-        Color playBtnColor = state.canPlayPause ? (g_ExpHoverBtn == 2 ? textMain : textDim) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
-        SolidBrush playBtnBrush(playBtnColor);
-        g.FillEllipse(&plateBr, plX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        if (g_ExpHoverBtn == 2 && state.canPlayPause) g.FillEllipse(&activeBr, plX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        if (state.isPlaying) {
-            float bW = 3.5f*btnScale, bH = 15.0f*btnScale;
-            g.FillRectangle(&playBtnBrush, plX-(bW+1.5f), (float)controlY-(bH/2), bW, bH);
-            g.FillRectangle(&playBtnBrush, plX+1.5f,      (float)controlY-(bH/2), bW, bH);
-        } else {
-            float pW = 11.0f*btnScale, pH = 17.0f*btnScale;
-            PointF play[3] = { {plX-(pW/2),(float)controlY-(pH/2)}, {plX-(pW/2),(float)controlY+(pH/2)}, {plX+(pW/2),(float)controlY} };
-            g.FillPolygon(&playBtnBrush, play, 3);
-        }
-
-        // 4. Next
-        Color nextBtnColor = state.canGoNext ? (g_ExpHoverBtn == 3 ? textMain : textDim) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
-        SolidBrush nextBtnBrush(nextBtnColor);
-        g.FillEllipse(&plateBr, nX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        if (g_ExpHoverBtn == 3 && state.canGoNext) g.FillEllipse(&activeBr, nX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        {
-            float totalW = btnIconW + 2.5f * btnScale;
-            float iconLeft = nX - totalW / 2.0f;
-            float triRight = iconLeft + btnIconW;
-            PointF nxt[3] = { {iconLeft, (float)controlY - (btnIconH / 2.0f)}, {iconLeft, (float)controlY + (btnIconH / 2.0f)}, {triRight, (float)controlY} };
-            g.FillPolygon(&nextBtnBrush, nxt, 3);
-            g.FillRectangle(&nextBtnBrush, triRight, (float)controlY - (btnIconH / 2.0f), 2.5f * btnScale, btnIconH);
-        }
-
-        // 5. Repeat
-        bool rpActive = (repeatMode != winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None) && state.canRepeat;
-        bool rpOne = (repeatMode == winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track) && state.canRepeat;
-        Color rpColor = state.canRepeat ? (rpActive ? Color(255, 29, 185, 84) : (g_ExpHoverBtn == 5 ? textMain : textDim)) : Color(30, textDim.GetRed(), textDim.GetGreen(), textDim.GetBlue());
-        g.FillEllipse(&plateBr, rpX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        if (g_ExpHoverBtn == 5 && state.canRepeat) g.FillEllipse(&activeBr, rpX-btnCircR, (float)controlY-btnCircR, btnCircR*2, btnCircR*2);
-        DrawRepeatIcon(g, rpX - 8.0f, (float)controlY - 6.0f, 16.0f, 12.0f, 4.0f, rpColor, rpActive, rpOne);
     }
-    rowY += 44;
+    rowY += 32; // Control row height
 
     // ---- Row 7: Volume slider ----
     {
-        int volY = rowY + 4;
+        rowY += 8; // Volume offset
+        int volY = rowY;
         int volX = pad + 20;
         int volW = width - pad*2 - 40;
         int volH = 4;
@@ -3571,7 +4038,7 @@ PopupLayout GetPopupLayout(HWND hwnd) {
     lay.iconSize = g_Settings.popupIconSize;
     
     int rowY = lay.pad + lay.iconSize + 10;
-    int maxArtSize = lay.height - rowY - 180;
+    int maxArtSize = lay.height - rowY - 216;
     if (maxArtSize < 80) maxArtSize = 80;
     lay.artSize = min(lay.width - lay.pad * 2, maxArtSize);
     lay.artX = (lay.width - lay.artSize) / 2;
@@ -3612,9 +4079,17 @@ PopupLayout GetPopupLayout(HWND hwnd) {
         lay.lrcBtnY = 0;
     }
     
-    lay.seekY = rowY + 18;
-    lay.controlRowY = lay.seekY + 28 + 16;
-    lay.volRowY = lay.seekY + 28 + 44 + 4;
+    // Unified vertical offset accumulation
+    rowY += 24; // Seeker offset
+    lay.seekY = rowY;
+    rowY += 36; // Seeker row height
+    
+    rowY += 20; // Control offset
+    lay.controlRowY = rowY;
+    rowY += 32; // Control row height
+    
+    rowY += 8; // Volume offset
+    lay.volRowY = rowY;
     
     return lay;
 }
@@ -3646,21 +4121,30 @@ bool IsCursorOverInteractivePopupElement(HWND hwnd, int mx, int my) {
     
     float btnScale = 1.2f;
     float btnCircR = 14.0f * btnScale;
-    float btnGap   = 36.0f * btnScale;
-    float centerX  = lay.width / 2.0f;
-    float shX  = centerX - btnGap * 2.0f;
-    float pX   = centerX - btnGap;
-    float plX  = centerX;
-    float nX   = centerX + btnGap;
-    float rpX  = centerX + btnGap * 2.0f;
-    
+    float hitR = btnCircR + 4.0f;
     float dy = (float)my - (float)lay.controlRowY;
-    if (fabsf(dy) <= btnCircR) {
-        if      (fabsf((float)mx - pX)   <= btnCircR) return true;
-        else if (fabsf((float)mx - plX)  <= btnCircR) return true;
-        else if (fabsf((float)mx - nX)   <= btnCircR) return true;
-        else if (fabsf((float)mx - shX)  <= btnCircR) return true;
-        else if (fabsf((float)mx - rpX)  <= btnCircR) return true;
+    if (fabsf(dy) <= hitR) {
+        MediaState state;
+        {
+            lock_guard<mutex> guard(g_MediaState.lock);
+            state.canGoPrev = g_MediaState.canGoPrev;
+            state.canPlayPause = g_MediaState.canPlayPause;
+            state.canGoNext = g_MediaState.canGoNext;
+            state.canShuffle = g_MediaState.canShuffle;
+            state.canRepeat = g_MediaState.canRepeat;
+        }
+        std::vector<int> active = GetActiveControlButtons(state);
+        int numButtons = (int)active.size();
+        float btnGap = 36.0f * btnScale;
+        
+        float totalWidth = (numButtons - 1) * btnGap;
+        float startX = (lay.width - totalWidth) / 2.0f;
+        for (int i = 0; i < numButtons; i++) {
+            float btnX = startX + i * btnGap;
+            if (fabsf((float)mx - btnX) <= hitR) {
+                return true;
+            }
+        }
     }
     
     if (g_Settings.fetchLyrics) {
@@ -3676,11 +4160,11 @@ bool IsCursorOverInteractivePopupElement(HWND hwnd, int mx, int my) {
         }
     }
     
-    if (mx >= lay.pad && mx <= lay.width - lay.pad && my >= lay.seekY - 6 && my <= lay.seekY + 10 && g_Timeline.canSeek) {
+    if (mx >= lay.pad && mx <= lay.width - lay.pad && my >= lay.seekY - 12 && my <= lay.seekY + 16 && g_Timeline.canSeek) {
         return true;
     }
     int volX = lay.pad + 20, volW = lay.width - lay.pad*2 - 40;
-    if (mx >= volX && mx <= volX + volW && my >= lay.volRowY - 6 && my <= lay.volRowY + 10) {
+    if (mx >= volX && mx <= volX + volW && my >= lay.volRowY - 12 && my <= lay.volRowY + 16) {
         return true;
     }
     
@@ -3793,17 +4277,13 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 // Alpha is set via UpdateLayeredWindow inside WM_PAINT
 
                 RECT rc; GetWindowRect(hwnd, &rc);
-                HWND hTaskbar = FindWindow(L"Shell_TrayWnd", nullptr);
-                if (hTaskbar) {
-                    RECT tb; GetWindowRect(hTaskbar, &tb);
-                    int targetX = tb.left + g_Settings.offsetX;
-                    int targetY = tb.top - g_Settings.popupHeight - POPUP_GAP;
-                    int slideOffset = (int)((1.0f - g_Anim.progress) * 12.0f);
-                    SetWindowPos(hwnd, HWND_TOPMOST,
-                                 targetX, targetY + slideOffset,
-                                 g_Settings.popupWidth, g_Settings.popupHeight,
-                                 SWP_NOACTIVATE);
-                }
+                POINT popupPt = {};
+                int slideOffset = 0;
+                CalculatePopupPos(popupPt, slideOffset);
+                SetWindowPos(hwnd, HWND_TOPMOST,
+                             popupPt.x, popupPt.y,
+                             g_Settings.popupWidth, g_Settings.popupHeight,
+                             SWP_NOACTIVATE);
 
                 if (g_hMediaWindow) {
                     BYTE mediaAlpha = (BYTE)((1.0f - g_Anim.progress) * 255.0f);
@@ -3954,13 +4434,30 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             }
 
             int newBtn = 0;
+            float hitR = btnCircR + 4.0f;
             float dy = (float)my - (float)controlRowY;
-            if (fabsf(dy) <= btnCircR) {
-                if      (fabsf((float)mx - pX)   <= btnCircR) newBtn = 1;
-                else if (fabsf((float)mx - plX)  <= btnCircR) newBtn = 2;
-                else if (fabsf((float)mx - nX)   <= btnCircR) newBtn = 3;
-                else if (fabsf((float)mx - shX)  <= btnCircR) newBtn = 4;
-                else if (fabsf((float)mx - rpX)  <= btnCircR) newBtn = 5;
+            if (fabsf(dy) <= hitR) {
+                MediaState state;
+                {
+                    lock_guard<mutex> guard(g_MediaState.lock);
+                    state.canGoPrev = g_MediaState.canGoPrev;
+                    state.canPlayPause = g_MediaState.canPlayPause;
+                    state.canGoNext = g_MediaState.canGoNext;
+                    state.canShuffle = g_MediaState.canShuffle;
+                    state.canRepeat = g_MediaState.canRepeat;
+                }
+                std::vector<int> active = GetActiveControlButtons(state);
+                int numButtons = (int)active.size();
+                float btnGap = 36.0f * btnScale;
+                
+                float startX = (g_Settings.popupWidth - (numButtons - 1) * btnGap) / 2.0f;
+                for (int i = 0; i < numButtons; i++) {
+                    float btnX = startX + i * btnGap;
+                    if (fabsf((float)mx - btnX) <= hitR) {
+                        newBtn = active[i];
+                        break;
+                    }
+                }
             }
             if (hoverSwitch > 0) newBtn = hoverSwitch;
 
@@ -3996,11 +4493,11 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             }
 
             bool onSeek = (mx >= pad && mx <= g_Settings.popupWidth - pad &&
-                           my >= seekY - 6 && my <= seekY + 10 && g_Timeline.canSeek);
+                           my >= seekY - 12 && my <= seekY + 16 && g_Timeline.canSeek);
 
             int volX = pad + 20, volW = g_Settings.popupWidth - pad*2 - 40;
             bool onVol = (mx >= volX && mx <= volX + volW &&
-                          my >= volRowY - 6 && my <= volRowY + 10);
+                          my >= volRowY - 12 && my <= volRowY + 16);
 
             if (g_IsDraggingSession || g_SeekDragging || g_VolDragging || g_LyricsScrollDragging) {
                 newBtn = 0;
@@ -4091,9 +4588,9 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             float btnScale = 1.2f;
             float btnCircR = 14.0f * btnScale;
 
-            bool onSeek = (mx >= pad && mx <= g_Settings.popupWidth - pad && my >= seekY - 6 && my <= seekY + 10 && g_Timeline.canSeek);
-            bool onVol = (mx >= volX && mx <= volX + volW && my >= volRowY - 6 && my <= volRowY + 10);
-            bool onControls = (my >= controlRowY - btnCircR && my <= controlRowY + btnCircR);
+            bool onSeek = (mx >= pad && mx <= g_Settings.popupWidth - pad && my >= seekY - 12 && my <= seekY + 16 && g_Timeline.canSeek);
+            bool onVol = (mx >= volX && mx <= volX + volW && my >= volRowY - 12 && my <= volRowY + 16);
+            bool onControls = (my >= controlRowY - (btnCircR + 4.0f) && my <= controlRowY + (btnCircR + 4.0f));
             
             // Session switcher arrows click check
             bool onSwitchers = false;
@@ -4355,6 +4852,7 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 else if (g_ExpHoverBtn == 3) execute = canNext;
                 else if (g_ExpHoverBtn == 4) execute = canShuffle;
                 else if (g_ExpHoverBtn == 5) execute = canRepeat;
+                else if (g_ExpHoverBtn == 11 || g_ExpHoverBtn == 12) execute = g_Timeline.canSeek;
                 else execute = true;
 
                 if (execute) {
@@ -4381,6 +4879,10 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                             g_MediaState.repeatMode = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::Track;
                         else
                             g_MediaState.repeatMode = winrt::Windows::Media::MediaPlaybackAutoRepeatMode::None;
+                    } else if (g_ExpHoverBtn == 11) {
+                        SeekRelative(5.0);
+                    } else if (g_ExpHoverBtn == 12) {
+                        SeekRelative(-5.0);
                     } else {
                         if (g_ExpHoverBtn == 2) {
                             lock_guard<mutex> guard(g_MediaState.lock);
@@ -4414,12 +4916,10 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             RECT rc; GetClientRect(hwnd, &rc);
             
             HDC memDC = CreateCompatibleDC(hdc);
-            
-            // Create a 32-bit ARGB DIB Section to preserve GDI+ per-pixel transparency
             BITMAPINFO bmi = {};
             bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
             bmi.bmiHeader.biWidth = rc.right;
-            bmi.bmiHeader.biHeight = -rc.bottom; // top-down
+            bmi.bmiHeader.biHeight = -rc.bottom;
             bmi.bmiHeader.biPlanes = 1;
             bmi.bmiHeader.biBitCount = 32;
             bmi.bmiHeader.biCompression = BI_RGB;
@@ -4445,7 +4945,6 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 SetTimer(hwnd, IDT_ANIMATION, 16, NULL);
             }
             
-            // Use UpdateLayeredWindow to paint with per-pixel alpha transparency
             RECT winRect;
             GetWindowRect(hwnd, &winRect);
             POINT ptDst = { winRect.left, winRect.top };
@@ -4458,6 +4957,7 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             SelectObject(memDC, old);
             DeleteObject(memBmp);
             DeleteDC(memDC);
+            
             EndPaint(hwnd, &ps);
             return 0;
         }
@@ -4481,7 +4981,7 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             int pad = 16;
             int iconSize = g_Settings.popupIconSize;
             int rowY = pad + iconSize + 10;
-            int maxArtSize = g_Settings.popupHeight - rowY - 180;
+            int maxArtSize = g_Settings.popupHeight - rowY - 230;
             if (maxArtSize < 80) maxArtSize = 80;
             int artSize = min(g_Settings.popupWidth - pad * 2, maxArtSize);
             int artX = (g_Settings.popupWidth - artSize) / 2;
@@ -4513,6 +5013,92 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+void CalculateWidgetPos(int currentWidth, int currentHeight, POINT& outPt) {
+    HWND hTaskbar = FindWindow(L"Shell_TrayWnd", nullptr);
+    RECT tb = {};
+    if (hTaskbar) GetWindowRect(hTaskbar, &tb);
+    else {
+        tb.left = 0; tb.top = GetSystemMetrics(SM_CYSCREEN) - 48;
+        tb.right = GetSystemMetrics(SM_CXSCREEN); tb.bottom = GetSystemMetrics(SM_CYSCREEN);
+    }
+    int tbH = tb.bottom - tb.top;
+
+    if (g_Settings.position == POS_TOP_NOTCH) {
+        HMONITOR hMon = MonitorFromWindow(hTaskbar ? hTaskbar : GetDesktopWindow(), MONITOR_DEFAULTTOPRIMARY);
+        MONITORINFO mi = { sizeof(MONITORINFO) };
+        if (GetMonitorInfo(hMon, &mi)) {
+            int screenW = mi.rcMonitor.right - mi.rcMonitor.left;
+            outPt.x = mi.rcMonitor.left + (screenW - currentWidth) / 2 + g_Settings.offsetX;
+            outPt.y = mi.rcMonitor.top; // Zero gap top notch attachment!
+        } else {
+            outPt.x = (GetSystemMetrics(SM_CXSCREEN) - currentWidth) / 2 + g_Settings.offsetX;
+            outPt.y = 0;
+        }
+        return;
+    }
+
+    HWND hTray = hTaskbar ? FindWindowEx(hTaskbar, nullptr, L"TrayNotifyWnd", nullptr) : nullptr;
+    RECT trayRc = {};
+    bool hasTray = false;
+    if (hTray && IsWindowVisible(hTray)) {
+        GetWindowRect(hTray, &trayRc);
+        hasTray = true;
+    }
+
+    outPt.y = tb.top + (tbH - currentHeight) / 2 + g_Settings.offsetY;
+
+    int dw = (currentWidth - g_Settings.width) / 2;
+
+    switch (g_Settings.position) {
+        case POS_TRAY_LEFT: {
+            int baseX = hasTray ? (trayRc.left - g_Settings.width - g_Settings.offsetX)
+                                : (tb.right - 220 - g_Settings.width - g_Settings.offsetX);
+            outPt.x = baseX - dw; // Bi-directional symmetrical hover scaling!
+            break;
+        }
+        case POS_LEFT:
+        default: {
+            int baseX = tb.left + g_Settings.offsetX;
+            outPt.x = baseX - dw; // Bi-directional symmetrical hover scaling!
+            break;
+        }
+    }
+}
+
+void CalculatePopupPos(POINT& outPt, int& slideOffset) {
+    POINT widgetPt = { 0, 0 };
+    int compW = g_Settings.width;
+    int compH = g_Settings.height;
+    CalculateWidgetPos(compW, compH, widgetPt);
+
+    HMONITOR hMon = MonitorFromWindow(g_hMediaWindow ? g_hMediaWindow : GetDesktopWindow(), MONITOR_DEFAULTTOPRIMARY);
+    MONITORINFO mi = { sizeof(MONITORINFO) };
+    if (!GetMonitorInfo(hMon, &mi)) {
+        mi.rcWork.left = 0; mi.rcWork.top = 0;
+        mi.rcWork.right = GetSystemMetrics(SM_CXSCREEN);
+        mi.rcWork.bottom = GetSystemMetrics(SM_CYSCREEN);
+    }
+
+    slideOffset = (int)((1.0f - g_Anim.progress) * 12.0f);
+
+    if (g_Settings.position == POS_TOP_NOTCH) {
+        outPt.x = widgetPt.x + (compW - g_Settings.popupWidth) / 2;
+        outPt.y = widgetPt.y; // Expand directly downward flush from screen top (y = 0) with zero gap!
+    } else if (g_Settings.position == POS_TRAY_LEFT) {
+        // Extract upward directly above compact bar aligned right
+        outPt.x = widgetPt.x + compW - g_Settings.popupWidth;
+        outPt.y = widgetPt.y - g_Settings.popupHeight - POPUP_GAP + slideOffset;
+    } else {
+        outPt.x = widgetPt.x;
+        outPt.y = widgetPt.y - g_Settings.popupHeight - POPUP_GAP + slideOffset;
+    }
+
+    if (outPt.x < mi.rcWork.left + 4) outPt.x = mi.rcWork.left + 4;
+    if (outPt.x + g_Settings.popupWidth > mi.rcWork.right - 4) {
+        outPt.x = mi.rcWork.right - g_Settings.popupWidth - 4;
+    }
+}
+
 void ToggleExpandedPopup(HWND hCompact) {
     if (!g_hExpandedWindow) return;
 
@@ -4530,15 +5116,12 @@ void ToggleExpandedPopup(HWND hCompact) {
         return;
     }
 
-    HWND hTaskbar = FindWindow(L"Shell_TrayWnd", nullptr);
-    if (!hTaskbar) return;
-    RECT tb; GetWindowRect(hTaskbar, &tb);
-    int targetX = tb.left + g_Settings.offsetX;
-    int targetY = tb.top - g_Settings.popupHeight - POPUP_GAP;
+    POINT popupPt = {};
     int slideOffset = 12;
+    CalculatePopupPos(popupPt, slideOffset);
 
     SetWindowPos(g_hExpandedWindow, HWND_TOPMOST,
-                 targetX, targetY + slideOffset,
+                 popupPt.x, popupPt.y,
                  g_Settings.popupWidth, g_Settings.popupHeight,
                  SWP_NOACTIVATE | SWP_SHOWWINDOW);
 
@@ -4726,12 +5309,30 @@ LRESULT CALLBACK MediaWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     KillTimer(hwnd, IDT_ANIMATION);
                 }
             }
+            else if (wParam == IDT_ANIM_HOVER) {
+                float step = 0.15f;
+                if (g_HoverAnim.isHovered) {
+                    g_HoverAnim.progress += step;
+                    if (g_HoverAnim.progress >= 1.0f) {
+                        g_HoverAnim.progress = 1.0f;
+                        KillTimer(hwnd, IDT_ANIM_HOVER);
+                    }
+                } else {
+                    g_HoverAnim.progress -= step;
+                    if (g_HoverAnim.progress <= 0.0f) {
+                        g_HoverAnim.progress = 0.0f;
+                        KillTimer(hwnd, IDT_ANIM_HOVER);
+                    }
+                }
+                PostMessage(hwnd, WM_APP + 10, 0, 0);
+                InvalidateRect(hwnd, NULL, FALSE);
+            }
             return 0;
 
         case WM_APP + 10: {
             HWND hTaskbar = FindWindow(TEXT("Shell_TrayWnd"), nullptr);
-            if (!hTaskbar) break;
-            if (!IsWindowVisible(hTaskbar)) {
+            if (g_Settings.position != POS_TOP_NOTCH && !hTaskbar) break;
+            if (hTaskbar && !IsWindowVisible(hTaskbar) && g_Settings.position != POS_TOP_NOTCH) {
                 if (IsWindowVisible(hwnd)) ShowWindow(hwnd, SW_HIDE);
                 return 0;
             }
@@ -4745,32 +5346,47 @@ LRESULT CALLBACK MediaWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 }
                 if (!gameModeHide) ShowWindow(hwnd, SW_SHOWNOACTIVATE);
             }
-            RECT rc; GetWindowRect(hTaskbar, &rc);
-            int x = rc.left + g_Settings.offsetX;
-            int tbH = rc.bottom - rc.top;
-            int y = rc.top + (tbH / 2) - (g_Settings.height / 2) + g_Settings.offsetY;
-            
-            // Calculate animated width based on popup animation progress
-            int currentWidth = g_Settings.width;
-            if (g_Anim.isOpen || g_Anim.isAnimating) {
-                int collapsedWidth = g_Settings.height;
-                currentWidth = g_Settings.width - (int)(g_Anim.progress * (g_Settings.width - collapsedWidth));
+
+            int baseWidth = g_Settings.width;
+            int baseHeight = g_Settings.height;
+
+            if (g_HoverAnim.progress > 0.0f && g_Settings.hoverScale > 100) {
+                float scaleFactor = 1.0f + ((float)g_Settings.hoverScale - 100.0f) / 100.0f * g_HoverAnim.progress;
+                baseWidth = (int)(baseWidth * scaleFactor);
+                baseHeight = (int)(baseHeight * scaleFactor);
             }
 
+            int currentWidth = baseWidth;
+            int currentHeight = baseHeight;
+            if (g_Anim.isOpen || g_Anim.isAnimating) {
+                int collapsedWidth = currentHeight;
+                currentWidth = currentWidth - (int)(g_Anim.progress * (currentWidth - collapsedWidth));
+            }
+
+            POINT pt = {};
+            CalculateWidgetPos(currentWidth, currentHeight, pt);
+
             RECT myRc; GetWindowRect(hwnd, &myRc);
-            if (myRc.left != x || myRc.top != y ||
+            if (myRc.left != pt.x || myRc.top != pt.y ||
                 (myRc.right - myRc.left) != currentWidth ||
-                (myRc.bottom - myRc.top) != g_Settings.height) {
-                SetWindowPos(hwnd, HWND_TOPMOST, x, y, currentWidth, g_Settings.height, SWP_NOACTIVATE);
+                (myRc.bottom - myRc.top) != currentHeight) {
+                SetWindowPos(hwnd, HWND_TOPMOST, pt.x, pt.y, currentWidth, currentHeight, SWP_NOACTIVATE);
             }
             if (g_hExpandedWindow) {
-                SetWindowPos(g_hExpandedWindow, nullptr, 0, 0, g_Settings.popupWidth, g_Settings.popupHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+                POINT popupPt = {};
+                int slideOffset = 0;
+                CalculatePopupPos(popupPt, slideOffset);
+                SetWindowPos(g_hExpandedWindow, HWND_TOPMOST, popupPt.x, popupPt.y, g_Settings.popupWidth, g_Settings.popupHeight, SWP_NOACTIVATE);
                 InvalidateRect(g_hExpandedWindow, nullptr, TRUE);
             }
             return 0;
         }
 
         case WM_MOUSEMOVE: {
+            if (!g_HoverAnim.isHovered) {
+                g_HoverAnim.isHovered = true;
+                SetTimer(hwnd, IDT_ANIM_HOVER, 16, NULL);
+            }
             int x = LOWORD(lParam), y = HIWORD(lParam);
             int artSize = g_Settings.height - 12;
             double scale = g_Settings.buttonScale;
@@ -4801,6 +5417,10 @@ LRESULT CALLBACK MediaWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
 
         case WM_MOUSELEAVE:
+            if (g_HoverAnim.isHovered) {
+                g_HoverAnim.isHovered = false;
+                SetTimer(hwnd, IDT_ANIM_HOVER, 16, NULL);
+            }
             g_HoverState = 0;
             InvalidateRect(hwnd, NULL, FALSE);
             break;
@@ -4958,7 +5578,6 @@ void MediaThread() {
         0, 0, g_Settings.popupWidth, g_Settings.popupHeight,
         NULL, NULL, wcExp.hInstance, NULL);
     if (g_hExpandedWindow) {
-        // Opacity is handled by UpdateLayeredWindow on next paint
         ApplyAcrylicBlur(g_hExpandedWindow);
     }
 
@@ -5013,9 +5632,14 @@ void WhTool_ModUninit() {
 void WhTool_ModSettingsChanged() {
     LoadSettings();
     if (g_hMediaWindow) {
+        ApplyAcrylicBlur(g_hMediaWindow);
         PostMessage(g_hMediaWindow, WM_TIMER, IDT_POLL_MEDIA, 0);
         PostMessage(g_hMediaWindow, WM_SETTINGCHANGE, 0, 0);
         PostMessage(g_hMediaWindow, WM_APP + 10, 0, 0);
+    }
+    if (g_hExpandedWindow) {
+        ApplyAcrylicBlur(g_hExpandedWindow);
+        InvalidateRect(g_hExpandedWindow, nullptr, TRUE);
     }
 }
 
