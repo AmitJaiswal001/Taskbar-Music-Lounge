@@ -1,6 +1,6 @@
 // ==WindhawkMod==
 // @id              dynamic-media-lounge
-// @name            Dynamic Media Lounge Pro
+// @name            Dynamic Media Lounge
 // @description     A native-style music ticker with media controls, multi-band spectrogram audio visualizer, ambient album art glow, live taskbar lyric streaming, and expanded Now Playing popup.
 // @version         1.0.0
 // @author          Amit
