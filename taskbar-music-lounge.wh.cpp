@@ -2687,21 +2687,22 @@ void DrawVisualizer(Graphics& g, float x, float y, float maxWidth, float maxHeig
         g.DrawCurve(&linePen, points, numBars, 0.5f);
         return;
     } else if (g_Settings.visualizerStyle == 2) {
-        // Mode 2: Pulse Beat Ring / Dynamic Sound Reactive Beat Ring
+        // Mode 2: Pulse Beat Ring / Hollow Sound Reactive Concentric Beat Rings
         float avgEnergy = 0.0f;
         for (int i = 0; i < numBars; i++) avgEnergy += g_VisBars[i];
         avgEnergy /= numBars;
         float maxR = maxHeight / 2.0f;
-        float radius = maxR * (0.20f + avgEnergy * 0.75f);
+        float radius = maxR * (0.25f + avgEnergy * 0.70f);
         float centerX = x + (numBars * (barW + gap)) / 2.0f;
         float centerY = y + maxR;
         
-        // Inner core beat ring
-        g.FillEllipse(&brush, centerX - radius, centerY - radius, radius * 2.0f, radius * 2.0f);
+        // Inner hollow pulse ring
+        Pen innerPen(color, 2.0f * barScale);
+        g.DrawEllipse(&innerPen, centerX - radius, centerY - radius, radius * 2.0f, radius * 2.0f);
         
         // Outer sound reactive wave ring
         float outerR = radius + 3.0f + (avgEnergy * 5.0f * barScale);
-        Pen outerPen(Color((BYTE)(150 + avgEnergy * 100), color.GetRed(), color.GetGreen(), color.GetBlue()), 1.8f * barScale);
+        Pen outerPen(Color((BYTE)(150 + avgEnergy * 105), color.GetRed(), color.GetGreen(), color.GetBlue()), 1.5f * barScale);
         g.DrawEllipse(&outerPen, centerX - outerR, centerY - outerR, outerR * 2.0f, outerR * 2.0f);
         return;
     }
@@ -3449,7 +3450,7 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
 
     // Visualizer top-right (offset to avoid switcher overlap if needed)
     int visMargin = (sessionCount > 1) ? pad + 24 + 10 : pad;
-    if (IsVisualizerActive()) {
+    if (g_Settings.showVisualizer) {
         float vScale = 1.0f;
         float vHeight = 12.0f;
         float vWidth = 8 * 3.0f * vScale + 7 * 2.0f * vScale;
@@ -4665,13 +4666,7 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 showLyrics = g_Lyrics.showLyrics;
             }
 
-            // Visualizer click to cycle preset modes (Spectrum -> Waveform -> Pulse Ring -> Micro-Bars)
-            bool onVisBox = (g_Settings.showVisualizer && !showLyrics && mx >= artX && mx <= artX + artSize && my >= artY && my <= artY + artSize);
-            if (onVisBox) {
-                g_Settings.visualizerStyle = (g_Settings.visualizerStyle + 1) % 4;
-                InvalidateRect(hwnd, NULL, FALSE);
-                return 0;
-            }
+
             
             // Session switcher arrows click check
             bool onSwitchers = false;
