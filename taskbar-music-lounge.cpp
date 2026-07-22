@@ -33,12 +33,17 @@ A media controller that uses Windows 11 native DWM styling for a seamless taskba
   - Synchronized live lyrics display with auto-scroll and manual drag-to-scroll
 * **Multiple Active Media Switcher:** Switch between multiple active media sources (e.g. Spotify, Browser, VLC) via top-row app switcher buttons or horizontal swipe gesture on the popup card.
 * **Sound-Reactive Music Visualizer:** Real-time 60fps WASAPI loopback audio peak visualizer that bounces to live sound output and rests flat when silent.
+* **Customizable Visualizer Styles:** 
+  - 8-Band Neon Spectrum Bars
+  - Fluid Waveform Oscilloscope Curve
+  - Pulse Beat Ring
+  - Taskbar Micro-Bars
 * **Live Synchronized Lyrics:** Fetches synced lyrics from LRCLIB with real-time highlighted current line tracking.
 * **Windows 11 Acrylic Glass Blur:** Real-time DWM Acrylic blur backdrop composition (`ACCENT_ENABLE_ACRYLICBLURBEHIND`) with auto Light/Dark theme adaptation.
 * **Instant Responsive Controls:** Local state caching guarantees instant button feedback without lag.
 * **Zero-Crash Protection:** Robust exception boundaries around WASAPI and WinRT media sessions handle audio endpoint changes and power state transitions cleanly.
 * **Fullscreen & Idle Auto-Hide:** Automatically hides during full-screen applications or after a configurable idle pause timeout.
-* **Mouse Scroll Volume Control:** Scroll over compact bar to adjust system/app volume directly.
+
 
 
 ## ⚠️ Requirements
@@ -102,13 +107,20 @@ A media controller that uses Windows 11 native DWM styling for a seamless taskba
   $name: Visualizer Bar Scale
 - VisualizerHeight: 14
   $name: Visualizer Bar Height
+- VisualizerStyle: waveform
+  $name: Visualizer Style Preset
+  $options:
+    - spectrum: 8-Band Neon Spectrum Bars
+    - waveform: Fluid Waveform Oscilloscope Curve
+    - pulse: Pulse Beat Ring
+    - microbars: Taskbar Micro-Bars
 - FetchLyrics: true
   $name: Fetch and Display Lyrics
 - LyricsFontSize: 14
   $name: Lyrics Font Size
 - AutoHideUnsupportedControls: true
   $name: "Auto-hide unsupported media controls"
-- PopupControls: "shuffle, prev, play/pause, next, repeat"
+- PopupControls: "shuffle, prev, rewind , play/pause , forward , next, repeat"
   $name: "Custom popup control buttons (comma-separated list of: play/pause, next, prev, shuffle, repeat, forward, rewind)"
 */
 // ==/WindhawkModSettings==
@@ -247,6 +259,7 @@ struct ModSettings {
     bool   realTimeVisualizer = true;
     double visualizerScale = 1.0;
     int    visualizerHeight = 14;
+    int    visualizerStyle = 0; // 0 = 8-Band Spectrum, 1 = Waveform Curve, 2 = Pulse Ring, 3 = Micro-Bars
     bool   glassBackdrop = false;
     bool   useBlur       = false;
     bool   fetchLyrics = true;
@@ -325,6 +338,7 @@ struct LyricState {
     bool hasLyrics = false;
     bool showLyrics = false;
     bool streamLyrics = false;
+    bool isSynced = true;
 } g_Lyrics;
 
 void ParseLrc(const wstring& lrcStr, const wstring& targetTitle) {
@@ -560,12 +574,31 @@ void DrawStringWithEmoji(Graphics& g, const wstring& text, Font* normalFont, con
     }
 }
 
+void PopulatePlainLyrics(const wstring& plain, const wstring& title) {
+    lock_guard<mutex> guard(g_Lyrics.lock);
+    if (g_Lyrics.trackTitle == title) {
+        g_Lyrics.plainText = plain;
+        g_Lyrics.hasLyrics = true;
+        g_Lyrics.isSynced = false;
+        g_Lyrics.lines.clear();
+        wstringstream ss(plain);
+        wstring pline;
+        while (getline(ss, pline)) {
+            if (pline.empty()) continue;
+            LyricLine ll;
+            ll.timeSec = -1.0;
+            ll.text = pline;
+            g_Lyrics.lines.push_back(ll);
+        }
+    }
+}
+
 void FetchLyrics(wstring artist, wstring title, double durationSec) {
     std::thread([artist, title, durationSec]() {
         try {
             winrt::init_apartment();
             winrt::Windows::Web::Http::HttpClient client;
-            client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"TaskbarMusicLoungePro/5.0.1 (https://github.com/AmitJaiswal001)");
+            client.DefaultRequestHeaders().UserAgent().TryParseAdd(L"TaskbarMusicLoungePro/5.1.0 (https://github.com/AmitJaiswal001)");
             
             wstring cleanArtist = CleanTrackTitle(artist);
             wstring cleanTitle = CleanTrackTitle(title);
@@ -600,11 +633,7 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
                 if (!gotSynced && json.HasKey(L"plainLyrics") && json.GetNamedValue(L"plainLyrics").ValueType() == winrt::Windows::Data::Json::JsonValueType::String) {
                     wstring plain = json.GetNamedString(L"plainLyrics").c_str();
                     if (!plain.empty()) {
-                        lock_guard<mutex> guard(g_Lyrics.lock);
-                        if (g_Lyrics.trackTitle == title) {
-                            g_Lyrics.plainText = plain;
-                            g_Lyrics.hasLyrics = true;
-                        }
+                        PopulatePlainLyrics(plain, title);
                     }
                 }
                 loaded = true;
@@ -651,11 +680,7 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
                         if (!gotSynced && bestItem.HasKey(L"plainLyrics") && bestItem.GetNamedValue(L"plainLyrics").ValueType() == winrt::Windows::Data::Json::JsonValueType::String) {
                             wstring plain = bestItem.GetNamedString(L"plainLyrics").c_str();
                             if (!plain.empty()) {
-                                lock_guard<mutex> guard(g_Lyrics.lock);
-                                if (g_Lyrics.trackTitle == title) {
-                                    g_Lyrics.plainText = plain;
-                                    g_Lyrics.hasLyrics = true;
-                                }
+                                PopulatePlainLyrics(plain, title);
                             }
                         }
                         loaded = true;
@@ -692,11 +717,7 @@ void FetchLyrics(wstring artist, wstring title, double durationSec) {
                     if (!gotSynced && json.HasKey(L"plainLyrics") && json.GetNamedValue(L"plainLyrics").ValueType() == winrt::Windows::Data::Json::JsonValueType::String) {
                         wstring plain = json.GetNamedString(L"plainLyrics").c_str();
                         if (!plain.empty()) {
-                            lock_guard<mutex> guard(g_Lyrics.lock);
-                            if (g_Lyrics.trackTitle == title) {
-                                g_Lyrics.plainText = plain;
-                                g_Lyrics.hasLyrics = true;
-                            }
+                            PopulatePlainLyrics(plain, title);
                         }
                     }
                 }
@@ -784,6 +805,10 @@ struct MediaState {
     mutex   lock;
 } g_MediaState;
 
+bool IsAdPlaying() {
+    return false;
+}
+
 double GetLivePosition() {
     if (g_SeekDragging) return g_Timeline.positionSec;
     bool isPlaying = false;
@@ -792,7 +817,9 @@ double GetLivePosition() {
         isPlaying = g_MediaState.isPlaying;
     }
     if (isPlaying && g_Timeline.valid && g_Timeline.durationSec > 0.0) {
-        double elapsed = (double)(GetTickCount64() - g_TimelineLastUpdated) / 1000.0;
+        ULONGLONG now = GetTickCount64();
+        double elapsed = (double)(now - g_TimelineLastUpdated) / 1000.0;
+        if (elapsed > 2.0) elapsed = 2.0; // Fix #5: clamp max extrapolation duration when buffering / internet slowdown
         double pos = g_Timeline.positionSec + elapsed;
         if (pos > g_Timeline.durationSec) pos = g_Timeline.durationSec;
         return pos;
@@ -801,13 +828,16 @@ double GetLivePosition() {
 }
 
 // ============================================================
-// Scrolling (compact bar)
+// Scrolling (compact bar) & Gestures
 // ============================================================
 float g_ScrollOffset = 0.0f;
 float g_LyricScrollSpeed = 1.0f;
 int  g_TextWidth    = 0;
 bool g_IsScrolling  = false;
 int  g_ScrollWait   = 60;
+
+int  g_CompactDragStartX = 0;
+bool g_IsCompactDragging = false;
 
 // Lyrics manual scroll state
 bool      g_LyricsIsUserScrolling = false;
@@ -1191,6 +1221,17 @@ void LoadSettings() {
     }
     g_Settings.visualizerScale = max(0.5, min(3.0, g_Settings.visualizerScale));
     g_Settings.visualizerHeight = Wh_GetIntSetting(L"VisualizerHeight");
+    PCWSTR visStyleStr = Wh_GetStringSetting(L"VisualizerStyle");
+    if (visStyleStr) {
+        std::wstring s(visStyleStr);
+        if (s == L"waveform") g_Settings.visualizerStyle = 1;
+        else if (s == L"pulse") g_Settings.visualizerStyle = 2;
+        else if (s == L"microbars") g_Settings.visualizerStyle = 3;
+        else g_Settings.visualizerStyle = 0;
+        Wh_FreeStringSetting(visStyleStr);
+    } else {
+        g_Settings.visualizerStyle = 1; // Default to Waveform Oscilloscope Curve
+    }
 
     g_Settings.autoHideUnsupportedControls = Wh_GetIntSetting(L"AutoHideUnsupportedControls") != 0;
     PCWSTR controlsStr = Wh_GetStringSetting(L"PopupControls");
@@ -2094,6 +2135,14 @@ DWORD GetCurrentTextColor() {
     return g_Settings.manualTextColor;
 }
 
+bool IsEnergySaverActive() {
+    SYSTEM_POWER_STATUS sps = {};
+    if (GetSystemPowerStatus(&sps)) {
+        if (sps.SystemStatusFlag == 1) return true;
+    }
+    return false;
+}
+
 void ApplyAcrylicBlur(HWND hwnd, int width = 0, int height = 0) {
     DWM_WINDOW_CORNER_PREFERENCE pref = DWMWCP_ROUND;
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &pref, sizeof(pref));
@@ -2101,7 +2150,7 @@ void ApplyAcrylicBlur(HWND hwnd, int width = 0, int height = 0) {
     BOOL darkMode = !IsSystemLightMode();
     DwmSetWindowAttribute(hwnd, 20, &darkMode, sizeof(darkMode)); // DWMWA_USE_IMMERSIVE_DARK_MODE
 
-    DWORD backdropType = g_Settings.useBlur ? 3 : 0; // 3 = Acrylic, 0 = Disabled (Solid)
+    DWORD backdropType = g_Settings.useBlur ? 3 : 0; // Force 3 = Acrylic blur
     DwmSetWindowAttribute(hwnd, 38, &backdropType, sizeof(backdropType)); // DWMWA_SYSTEMBACKDROP_TYPE
 
     HMODULE hUser = GetModuleHandle(L"user32.dll");
@@ -2110,7 +2159,8 @@ void ApplyAcrylicBlur(HWND hwnd, int width = 0, int height = 0) {
         if (SetComp) {
             ACCENT_POLICY policy = {};
             if (g_Settings.useBlur) {
-                DWORD gradient = darkMode ? 0x08101010 : 0x08FFFFFF;
+                // Force ACCENT_ENABLE_ACRYLICBLURBEHIND / BLURBEHIND so blur works unconditionally even on Energy Saver mode
+                DWORD gradient = darkMode ? 0x01101010 : 0x01FFFFFF;
                 policy = { ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, gradient, 0 };
             } else {
                 policy = { ACCENT_DISABLED, 0, 0, 0 };
@@ -2467,7 +2517,7 @@ void AudioCaptureThread() {
                 }
             } else {
                 Wh_Log(L"[Taskbar Music Lounge] GetBuffer failed: 0x%08X", hr);
-                if (hr == AUDCLNT_E_DEVICE_INVALIDATED || hr == AUDCLNT_E_SERVICE_NOT_RUNNING) {
+                if (hr == AUDCLNT_E_DEVICE_INVALIDATED || hr == AUDCLNT_E_SERVICE_NOT_RUNNING || hr == AUDCLNT_E_RESOURCES_INVALIDATED || FAILED(hr)) {
                     deviceActive = false;
                 }
                 if (GetTickCount64() - lastAudioTime > 100) {
@@ -2618,11 +2668,45 @@ bool IsVisualizerActive() {
 void DrawVisualizer(Graphics& g, float x, float y, float maxWidth, float maxHeight, Color color, float barScale = 1.0f) {
     int numBars = 8;
     float gap = 2.0f * barScale;
-    float barW = 3.0f * barScale;
+    float barW = (g_Settings.visualizerStyle == 3) ? (2.0f * barScale) : (3.0f * barScale);
     
     SolidBrush brush(color);
+    Pen linePen(color, 2.0f * barScale);
     SolidBrush shadowBrush(Color(120, 0, 0, 0));
+
+    if (g_Settings.visualizerStyle == 1) {
+        // Mode 1: Fluid Waveform Curve / Oscilloscope
+        PointF points[8];
+        for (int i = 0; i < numBars; i++) {
+            float h = g_VisBars[i] * maxHeight;
+            if (h < 2.0f) h = 2.0f;
+            float bx = x + i * (barW + gap) + barW / 2.0f;
+            float by = y + maxHeight / 2.0f + ((i % 2 == 0) ? (h / 2.0f) : (-h / 2.0f));
+            points[i] = PointF(bx, by);
+        }
+        g.DrawCurve(&linePen, points, numBars, 0.5f);
+        return;
+    } else if (g_Settings.visualizerStyle == 2) {
+        // Mode 2: Pulse Beat Ring / Dynamic Sound Reactive Beat Ring
+        float avgEnergy = 0.0f;
+        for (int i = 0; i < numBars; i++) avgEnergy += g_VisBars[i];
+        avgEnergy /= numBars;
+        float maxR = maxHeight / 2.0f;
+        float radius = maxR * (0.20f + avgEnergy * 0.75f);
+        float centerX = x + (numBars * (barW + gap)) / 2.0f;
+        float centerY = y + maxR;
+        
+        // Inner core beat ring
+        g.FillEllipse(&brush, centerX - radius, centerY - radius, radius * 2.0f, radius * 2.0f);
+        
+        // Outer sound reactive wave ring
+        float outerR = radius + 3.0f + (avgEnergy * 5.0f * barScale);
+        Pen outerPen(Color((BYTE)(150 + avgEnergy * 100), color.GetRed(), color.GetGreen(), color.GetBlue()), 1.8f * barScale);
+        g.DrawEllipse(&outerPen, centerX - outerR, centerY - outerR, outerR * 2.0f, outerR * 2.0f);
+        return;
+    }
     
+    // Mode 0 (Spectrum Bars) & Mode 3 (Micro-Bars)
     for (int i = 0; i < numBars; i++) {
         float h = g_VisBars[i] * maxHeight;
         if (h < 2.0f) h = 2.0f;
@@ -2641,21 +2725,23 @@ void DrawVisualizer(Graphics& g, float x, float y, float maxWidth, float maxHeig
         
         g.FillPath(&brush, &path);
 
-        // Draw peak dot/dash
-        float peakH = g_VisPeaks[i] * maxHeight;
-        float pby = y + maxHeight - peakH;
-        if (pby > by - 2.0f * barScale) pby = by - 2.0f * barScale;
-        
-        GraphicsPath peakPath;
-        float peakSizeH = max(1.5f * barScale, 2.0f);
-        AddRoundedRect(peakPath, (int)bx, (int)pby, (int)barW, (int)peakSizeH, (int)(barW / 2));
-        
-        if (g_Settings.glassBackdrop) {
-            GraphicsPath peakShadowPath;
-            AddRoundedRect(peakShadowPath, (int)(bx + 1.0f), (int)(pby + 1.0f), (int)barW, (int)peakSizeH, (int)(barW / 2));
-            g.FillPath(&shadowBrush, &peakShadowPath);
+        if (g_Settings.visualizerStyle != 3) {
+            // Draw peak dot/dash for standard spectrum
+            float peakH = g_VisPeaks[i] * maxHeight;
+            float pby = y + maxHeight - peakH;
+            if (pby > by - 2.0f * barScale) pby = by - 2.0f * barScale;
+            
+            GraphicsPath peakPath;
+            float peakSizeH = max(1.5f * barScale, 2.0f);
+            AddRoundedRect(peakPath, (int)bx, (int)pby, (int)barW, (int)peakSizeH, (int)(barW / 2));
+            
+            if (g_Settings.glassBackdrop) {
+                GraphicsPath peakShadowPath;
+                AddRoundedRect(peakShadowPath, (int)(bx + 1.0f), (int)(pby + 1.0f), (int)barW, (int)peakSizeH, (int)(barW / 2));
+                g.FillPath(&shadowBrush, &peakShadowPath);
+            }
+            g.FillPath(&brush, &peakPath);
         }
-        g.FillPath(&brush, &peakPath);
     }
 }
 
@@ -3443,21 +3529,31 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
         g.FillPath(&lyricBg, &lyricPath);
         
         if (!lyricsLines.empty()) {
-            double livePos = GetLivePosition();
+            bool isSyncedLyrics = true;
+            {
+                lock_guard<mutex> lguard(g_Lyrics.lock);
+                isSyncedLyrics = g_Lyrics.isSynced;
+            }
+
             int activeIndex = -1;
-            for (size_t i = 0; i < lyricsLines.size(); i++) {
-                if (livePos >= lyricsLines[i].timeSec) {
-                    activeIndex = (int)i;
-                } else {
-                    break;
+            if (isSyncedLyrics) {
+                double livePos = GetLivePosition();
+                for (size_t i = 0; i < lyricsLines.size(); i++) {
+                    if (livePos >= lyricsLines[i].timeSec) {
+                        activeIndex = (int)i;
+                    } else {
+                        break;
+                    }
                 }
             }
             
             float lineHeight = 38.0f;
-            if (activeIndex != -1) {
-                g_LyricsTargetScroll = activeIndex * lineHeight;
-            } else {
-                g_LyricsTargetScroll = 0.0f;
+            if (isSyncedLyrics) {
+                if (activeIndex != -1) {
+                    g_LyricsTargetScroll = activeIndex * lineHeight;
+                } else {
+                    g_LyricsTargetScroll = 0.0f;
+                }
             }
             
             // Trigger animation timer to slide smoothly if offsets mismatch
@@ -3667,17 +3763,17 @@ void DrawExpandedPanel(HDC hdc, int width, int height) {
         
         int textHeight = (int)boundRect.Height;
         if (textHeight <= 0) textHeight = (int)(g_Settings.popupFontSize - 1.0f);
-        int verticalPadding = 6;
+        int verticalPadding = 2;
         int pillH = textHeight + verticalPadding;
         int pillY = rowY;
 
         GraphicsPath pillPath;
         AddRoundedRect(pillPath, pillX, pillY, pillW, pillH, 6);
-        Color plateColor = Color(200, 15, 15, 15);
+        Color plateColor = Color(160, 35, 40, 55); // Translucent glassmorphic accent pill background
         SolidBrush plateBr(plateColor);
         g.FillPath(&plateBr, &pillPath);
         
-        Color borderColor = Color(40, 255, 255, 255);
+        Color borderColor = Color(70, 255, 255, 255);
         Pen borderPen(borderColor, 1.0f);
         g.DrawPath(&borderPen, &pillPath);
 
@@ -4154,13 +4250,13 @@ bool IsCursorOverInteractivePopupElement(HWND hwnd, int mx, int my) {
         int startX = (lay.width - totalW) / 2;
         int toggleX = startX;
         int lrcBtnX = startX + btnW + 8;
-        if (my >= lay.lrcBtnY && my <= lay.lrcBtnY + btnH) {
-            if (mx >= toggleX && mx <= toggleX + btnW) return true;
-            if (mx >= lrcBtnX && mx <= lrcBtnX + btnW) return true;
+        if (my >= lay.lrcBtnY - 6 && my <= lay.lrcBtnY + btnH + 6) {
+            if (mx >= toggleX - 6 && mx <= toggleX + btnW + 6) return true;
+            if (mx >= lrcBtnX - 6 && mx <= lrcBtnX + btnW + 6) return true;
         }
     }
     
-    if (mx >= lay.pad && mx <= lay.width - lay.pad && my >= lay.seekY - 12 && my <= lay.seekY + 16 && g_Timeline.canSeek) {
+    if (mx >= lay.pad && mx <= lay.width - lay.pad && my >= lay.seekY - 12 && my <= lay.seekY + 16 && g_Timeline.canSeek && !IsAdPlaying()) {
         return true;
     }
     int volX = lay.pad + 20, volW = lay.width - lay.pad*2 - 40;
@@ -4471,7 +4567,7 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 int toggleX = startX;
                 int lrcBtnX = startX + btnW + btnGap;
                 
-                if (my >= lrcBtnY && my <= lrcBtnY + btnH) {
+                if (my >= lrcBtnY - 6 && my <= lrcBtnY + btnH + 6) {
                     if (mx >= toggleX && mx <= toggleX + btnW) {
                         newBtn = 10;
                     } else if (mx >= lrcBtnX && mx <= lrcBtnX + btnW) {
@@ -4532,14 +4628,19 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 InvalidateRect(hwnd, NULL, FALSE);
             }
             if (g_SeekDragging) {
-                int seekTrackX = pad;
-                int seekTrackW = g_Settings.popupWidth - pad*2;
-                float pct = (float)(mx - seekTrackX) / (float)seekTrackW;
-                pct = max(0.0f, min(1.0f, pct));
-                g_Timeline.positionSec = pct * g_Timeline.durationSec;
-                g_TimelineLastUpdated = GetTickCount64();
-                g_LastSeekTime = GetTickCount64();
-                InvalidateRect(hwnd, NULL, FALSE);
+                if (!g_Timeline.canSeek) {
+                    g_SeekDragging = false;
+                    ReleaseCapture();
+                } else {
+                    int seekTrackX = pad;
+                    int seekTrackW = g_Settings.popupWidth - pad*2;
+                    float pct = (float)(mx - seekTrackX) / (float)seekTrackW;
+                    pct = max(0.0f, min(1.0f, pct));
+                    g_Timeline.positionSec = pct * g_Timeline.durationSec;
+                    g_TimelineLastUpdated = GetTickCount64();
+                    g_LastSeekTime = GetTickCount64();
+                    InvalidateRect(hwnd, NULL, FALSE);
+                }
             }
             if (g_VolDragging) {
                 float pct = (float)(mx - volX) / (float)volW;
@@ -4592,6 +4693,20 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             bool onVol = (mx >= volX && mx <= volX + volW && my >= volRowY - 12 && my <= volRowY + 16);
             bool onControls = (my >= controlRowY - (btnCircR + 4.0f) && my <= controlRowY + (btnCircR + 4.0f));
             
+            bool showLyrics = false;
+            if (g_Settings.fetchLyrics) {
+                lock_guard<mutex> lguard(g_Lyrics.lock);
+                showLyrics = g_Lyrics.showLyrics;
+            }
+
+            // Visualizer click to cycle preset modes (Spectrum -> Waveform -> Pulse Ring -> Micro-Bars)
+            bool onVisBox = (g_Settings.showVisualizer && !showLyrics && mx >= artX && mx <= artX + artSize && my >= artY && my <= artY + artSize);
+            if (onVisBox) {
+                g_Settings.visualizerStyle = (g_Settings.visualizerStyle + 1) % 4;
+                InvalidateRect(hwnd, NULL, FALSE);
+                return 0;
+            }
+            
             // Session switcher arrows click check
             bool onSwitchers = false;
             if (sessionCount > 1 && my >= pad - 4 && my <= pad + 20) {
@@ -4625,18 +4740,13 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
             int lrcBtnX = startX + btnW + btnGap;
             bool onToggleBtn = false;
             bool onLrcBtn = false;
-            if (g_Settings.fetchLyrics && my >= lrcBtnY && my <= lrcBtnY + btnH) {
+            if (g_Settings.fetchLyrics && my >= lrcBtnY - 6 && my <= lrcBtnY + btnH + 6) {
                 if (mx >= toggleX && mx <= toggleX + btnW) onToggleBtn = true;
                 else if (mx >= lrcBtnX && mx <= lrcBtnX + btnW) onLrcBtn = true;
             }
 
             bool onLyricsBox = false;
-            bool showLyrics = false;
             if (g_Settings.fetchLyrics) {
-                {
-                    lock_guard<mutex> lguard(g_Lyrics.lock);
-                    showLyrics = g_Lyrics.showLyrics;
-                }
                 if (showLyrics && mx >= artX && mx <= artX + artSize && my >= rowY && my <= rowY + artSize) {
                     onLyricsBox = true;
                 }
@@ -5246,6 +5356,39 @@ LRESULT CALLBACK MediaWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             break;
         }
 
+        case WM_MOUSEWHEEL: {
+            // Vertical 2-finger trackpad scroll / vertical mouse wheel -> System Volume (+5% / -5%)
+            short zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+            if (zDelta != 0) {
+                float step = (zDelta > 0) ? 0.05f : -0.05f;
+                float newVol = min(1.0f, max(0.0f, g_VolumeLevel + step));
+                SetVolume(newVol);
+                InvalidateRect(hwnd, NULL, TRUE);
+                return 0;
+            }
+            break;
+        }
+
+        case WM_MOUSEHWHEEL: {
+            // Horizontal 2-finger trackpad scroll / tilt wheel -> Seek Left (-5s) / Right (+5s)
+            short zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+            if (zDelta != 0) {
+                if (g_Timeline.valid && g_Timeline.canSeek && !IsAdPlaying()) {
+                    double curPos = GetLivePosition();
+                    double delta = (zDelta > 0) ? 5.0 : -5.0; // Right -> +5s, Left -> -5s
+                    double newPos = curPos + delta;
+                    if (newPos < 0.0) newPos = 0.0;
+                    if (newPos > g_Timeline.durationSec) newPos = g_Timeline.durationSec;
+                    g_Timeline.positionSec = newPos;
+                    g_TimelineLastUpdated = GetTickCount64();
+                    SendSeekCommand(newPos);
+                    InvalidateRect(hwnd, NULL, TRUE);
+                }
+                return 0;
+            }
+            break;
+        }
+
         case APP_WM_CLOSE:
             DestroyWindow(hwnd);
             return 0;
@@ -5382,16 +5525,29 @@ LRESULT CALLBACK MediaWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             return 0;
         }
 
+        case WM_KEYDOWN: {
+            if (wParam == VK_LEFT) {
+                SeekRelative(-5.0);
+                return 0;
+            } else if (wParam == VK_RIGHT) {
+                SeekRelative(+5.0);
+                return 0;
+            }
+            break;
+        }
+
         case WM_MOUSEMOVE: {
             if (!g_HoverAnim.isHovered) {
                 g_HoverAnim.isHovered = true;
                 SetTimer(hwnd, IDT_ANIM_HOVER, 16, NULL);
             }
-            int x = LOWORD(lParam), y = HIWORD(lParam);
+            int x = (int)(short)LOWORD(lParam);
+            int y = (int)(short)HIWORD(lParam);
+
             int artSize = g_Settings.height - 12;
-            double scale = g_Settings.buttonScale;
+            float scale = (float)g_Settings.buttonScale;
             int startControlX = 6 + artSize + (int)(12 * scale);
-            float gap = 28.0f * (float)scale;
+            float gap   = 28.0f * scale;
             float pX  = (float)startControlX;
             float plX = pX + gap;
             float nX  = plX + gap;
@@ -5404,12 +5560,18 @@ LRESULT CALLBACK MediaWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 canNext = g_MediaState.canGoNext;
             }
 
+            float controlY = (float)g_Settings.height / 2.0f;
+            float maxDistSq = radius * radius;
+
             int newState = 0;
-            if (y > 10 && y < g_Settings.height - 10) {
-                if      (x >= pX  - radius && x <= pX  + radius && canPrev) newState = 1;
-                else if (x >= plX - radius && x <= plX + radius && canPlay) newState = 2;
-                else if (x >= nX  - radius && x <= nX  + radius && canNext) newState = 3;
-            }
+            float dx1 = (float)x - pX,   dy1 = (float)y - controlY;
+            float dx2 = (float)x - plX,  dy2 = (float)y - controlY;
+            float dx3 = (float)x - nX,   dy3 = (float)y - controlY;
+
+            if      (canPrev && (dx1 * dx1 + dy1 * dy1 <= maxDistSq)) newState = 1;
+            else if (canPlay && (dx2 * dx2 + dy2 * dy2 <= maxDistSq)) newState = 2;
+            else if (canNext && (dx3 * dx3 + dy3 * dy3 <= maxDistSq)) newState = 3;
+
             if (newState != g_HoverState) { g_HoverState = newState; InvalidateRect(hwnd, NULL, FALSE); }
             TRACKMOUSEEVENT tme = { sizeof(TRACKMOUSEEVENT), TME_LEAVE, hwnd, 0 };
             TrackMouseEvent(&tme);
@@ -5426,32 +5588,42 @@ LRESULT CALLBACK MediaWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             break;
 
         case WM_LBUTTONUP: {
-            if (g_HoverState > 0) {
-                bool canPrev = true, canPlay = true, canNext = true;
-                {
-                    lock_guard<mutex> guard(g_MediaState.lock);
-                    canPrev = g_MediaState.canGoPrev;
-                    canPlay = g_MediaState.canPlayPause;
-                    canNext = g_MediaState.canGoNext;
-                }
-                bool execute = false;
-                if (g_HoverState == 1) execute = canPrev;
-                else if (g_HoverState == 2) execute = canPlay;
-                else if (g_HoverState == 3) execute = canNext;
-                
-                if (execute) {
-                    SendMediaCommand(g_HoverState);
-                }
+            int x = (int)(short)LOWORD(lParam);
+            int y = (int)(short)HIWORD(lParam);
+
+            int artSize = g_Settings.height - 12;
+            float scale = (float)g_Settings.buttonScale;
+            int startControlX = 6 + artSize + (int)(12 * scale);
+            float gap   = 28.0f * scale;
+            float pX  = (float)startControlX;
+            float plX = pX + gap;
+            float nX  = plX + gap;
+            float radius = 12.0f * (float)scale;
+            float controlY = (float)g_Settings.height / 2.0f;
+            float maxDistSq = radius * radius;
+
+            bool canPrev = true, canPlay = true, canNext = true;
+            {
+                lock_guard<mutex> guard(g_MediaState.lock);
+                canPrev = g_MediaState.canGoPrev;
+                canPlay = g_MediaState.canPlayPause;
+                canNext = g_MediaState.canGoNext;
+            }
+
+            int clickedBtn = 0;
+            float dx1 = (float)x - pX,   dy1 = (float)y - controlY;
+            float dx2 = (float)x - plX,  dy2 = (float)y - controlY;
+            float dx3 = (float)x - nX,   dy3 = (float)y - controlY;
+
+            if      (canPrev && (dx1 * dx1 + dy1 * dy1 <= maxDistSq)) clickedBtn = 1;
+            else if (canPlay && (dx2 * dx2 + dy2 * dy2 <= maxDistSq)) clickedBtn = 2;
+            else if (canNext && (dx3 * dx3 + dy3 * dy3 <= maxDistSq)) clickedBtn = 3;
+
+            if (clickedBtn > 0) {
+                SendMediaCommand(clickedBtn);
             } else {
                 PostMessage(hwnd, WM_TOGGLE_POPUP, 0, 0);
             }
-            return 0;
-        }
-
-        case WM_MOUSEWHEEL: {
-            short zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
-            keybd_event(zDelta > 0 ? VK_VOLUME_UP : VK_VOLUME_DOWN, 0, 0, 0);
-            keybd_event(zDelta > 0 ? VK_VOLUME_UP : VK_VOLUME_DOWN, 0, KEYEVENTF_KEYUP, 0);
             return 0;
         }
 
