@@ -37,7 +37,7 @@ A media controller that uses Windows 11 native DWM styling for a seamless taskba
   - 8-Band Neon Spectrum Bars
   - Fluid Waveform Oscilloscope Curve
   - Pulse Beat Ring
-  - Taskbar Micro-Bars
+  - Pulse Matrix (6-Bar Dual Spectrum)
 * **Live Synchronized Lyrics:** Fetches synced lyrics from LRCLIB with real-time highlighted current line tracking.
 * **Windows 11 Acrylic Glass Blur:** Real-time DWM Acrylic blur backdrop composition (`ACCENT_ENABLE_ACRYLICBLURBEHIND`) with auto Light/Dark theme adaptation.
 * **Instant Responsive Controls:** Local state caching guarantees instant button feedback without lag.
@@ -107,13 +107,13 @@ A media controller that uses Windows 11 native DWM styling for a seamless taskba
   $name: Visualizer Bar Scale
 - VisualizerHeight: 14
   $name: Visualizer Bar Height
-- VisualizerStyle: waveform
+- VisualizerStyle: dualspectrum
   $name: Visualizer Style Preset
   $options:
     - spectrum: 8-Band Neon Spectrum Bars
     - waveform: Fluid Waveform Oscilloscope Curve
     - pulse: Pulse Beat Ring
-    - microbars: Taskbar Micro-Bars
+    - dualspectrum: Pulse Matrix (6-Bar Dual Spectrum)
 - FetchLyrics: true
   $name: Fetch and Display Lyrics
 - LyricsFontSize: 14
@@ -1226,11 +1226,11 @@ void LoadSettings() {
         std::wstring s(visStyleStr);
         if (s == L"waveform") g_Settings.visualizerStyle = 1;
         else if (s == L"pulse") g_Settings.visualizerStyle = 2;
-        else if (s == L"microbars") g_Settings.visualizerStyle = 3;
+        else if (s == L"dualspectrum" || s == L"microbars") g_Settings.visualizerStyle = 3;
         else g_Settings.visualizerStyle = 0;
         Wh_FreeStringSetting(visStyleStr);
     } else {
-        g_Settings.visualizerStyle = 1; // Default to Waveform Oscilloscope Curve
+        g_Settings.visualizerStyle = 3; // Default to Pulse Matrix (6-Bar Dual Spectrum)
     }
 
     g_Settings.autoHideUnsupportedControls = Wh_GetIntSetting(L"AutoHideUnsupportedControls") != 0;
@@ -2705,9 +2705,35 @@ void DrawVisualizer(Graphics& g, float x, float y, float maxWidth, float maxHeig
         Pen outerPen(Color((BYTE)(150 + avgEnergy * 105), color.GetRed(), color.GetGreen(), color.GetBlue()), 1.5f * barScale);
         g.DrawEllipse(&outerPen, centerX - outerR, centerY - outerR, outerR * 2.0f, outerR * 2.0f);
         return;
+    } else if (g_Settings.visualizerStyle == 3) {
+        // Mode 3: Pulse Matrix (6-Bar Dual Spectrum - Bi-directional vertical bars!)
+        int numSpectrumBars = 6;
+        float barW3 = 4.5f * barScale;
+        float gap3 = 3.0f * barScale;
+        float centerY = y + maxHeight / 2.0f;
+        for (int i = 0; i < numSpectrumBars; i++) {
+            float val = g_VisBars[i] * 1.25f;
+            if (val > 1.0f) val = 1.0f;
+            float h = val * maxHeight;
+            if (h < 3.0f) h = 3.0f;
+
+            float bx = x + i * (barW3 + gap3);
+            float by = centerY - (h / 2.0f); // Center-aligned bi-directional expansion (up & down)!
+
+            GraphicsPath path;
+            AddRoundedRect(path, (int)bx, (int)by, (int)barW3, (int)h, (int)min(2.5f * barScale, barW3 / 2.0f));
+
+            if (g_Settings.glassBackdrop) {
+                GraphicsPath shadowPath;
+                AddRoundedRect(shadowPath, (int)(bx + 1.0f), (int)(by + 1.0f), (int)barW3, (int)h, (int)min(2.5f * barScale, barW3 / 2.0f));
+                g.FillPath(&shadowBrush, &shadowPath);
+            }
+            g.FillPath(&brush, &path);
+        }
+        return;
     }
     
-    // Mode 0 (Spectrum Bars) & Mode 3 (Micro-Bars)
+    // Mode 0 (Standard 8-Band Spectrum Bars)
     for (int i = 0; i < numBars; i++) {
         float h = g_VisBars[i] * maxHeight;
         if (h < 2.0f) h = 2.0f;
@@ -4666,7 +4692,13 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 showLyrics = g_Lyrics.showLyrics;
             }
 
-
+            // Visualizer click to cycle preset modes (Spectrum -> Waveform -> Pulse Ring -> Micro-Bars)
+            bool onVisBox = (g_Settings.showVisualizer && !showLyrics && mx >= artX && mx <= artX + artSize && my >= artY && my <= artY + artSize);
+            if (onVisBox) {
+                g_Settings.visualizerStyle = (g_Settings.visualizerStyle + 1) % 4;
+                InvalidateRect(hwnd, NULL, FALSE);
+                return 0;
+            }
             
             // Session switcher arrows click check
             bool onSwitchers = false;
