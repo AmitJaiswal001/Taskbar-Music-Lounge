@@ -2159,9 +2159,11 @@ void ApplyAcrylicBlur(HWND hwnd, int width = 0, int height = 0) {
         if (SetComp) {
             ACCENT_POLICY policy = {};
             if (g_Settings.useBlur) {
-                // Force ACCENT_ENABLE_ACRYLICBLURBEHIND / BLURBEHIND so blur works unconditionally even on Energy Saver mode
+                // Ensure blur works unconditionally: use standard DWM blur in Energy Saver, Acrylic blur in normal mode
+                bool energySaver = IsEnergySaverActive();
                 DWORD gradient = darkMode ? 0x01101010 : 0x01FFFFFF;
-                policy = { ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, gradient, 0 };
+                ACCENT_STATE state = energySaver ? ACCENT_ENABLE_BLURBEHIND : ACCENT_ENABLE_ACRYLICBLURBEHIND;
+                policy = { state, 0, gradient, 0 };
             } else {
                 policy = { ACCENT_DISABLED, 0, 0, 0 };
             }
@@ -2297,10 +2299,11 @@ float GetActiveSessionPeak() {
                             
                             if (!lowerAppId.empty() && idStr.find(lowerAppId) != wstring::npos) matched = true;
                             else if (!lowerAppName.empty() && idStr.find(lowerAppName) != wstring::npos) matched = true;
-                            else if (lowerAppId.find(L"chrome") != wstring::npos && idStr.find(L"chrome.exe") != wstring::npos) matched = true;
-                            else if (lowerAppId.find(L"spotify") != wstring::npos && idStr.find(L"spotify.exe") != wstring::npos) matched = true;
-                            else if (lowerAppId.find(L"firefox") != wstring::npos && idStr.find(L"firefox.exe") != wstring::npos) matched = true;
-                            else if (lowerAppId.find(L"vlc") != wstring::npos && idStr.find(L"vlc.exe") != wstring::npos) matched = true;
+                            else if ((lowerAppId.find(L"chrome") != wstring::npos || lowerAppName.find(L"chrome") != wstring::npos) && idStr.find(L"chrome.exe") != wstring::npos) matched = true;
+                            else if ((lowerAppId.find(L"spotify") != wstring::npos || lowerAppName.find(L"spotify") != wstring::npos) && idStr.find(L"spotify.exe") != wstring::npos) matched = true;
+                            else if ((lowerAppId.find(L"firefox") != wstring::npos || lowerAppName.find(L"firefox") != wstring::npos) && idStr.find(L"firefox.exe") != wstring::npos) matched = true;
+                            else if ((lowerAppId.find(L"edge") != wstring::npos || lowerAppName.find(L"edge") != wstring::npos) && idStr.find(L"msedge.exe") != wstring::npos) matched = true;
+                            else if ((lowerAppId.find(L"vlc") != wstring::npos || lowerAppName.find(L"vlc") != wstring::npos || lowerAppName.find(L"videolan") != wstring::npos) && idStr.find(L"vlc.exe") != wstring::npos) matched = true;
                             else if ((lowerAppId.find(L"audx") != wstring::npos || lowerAppName.find(L"audx") != wstring::npos ||
                                       lowerAppId.find(L"python") != wstring::npos || lowerAppName.find(L"python") != wstring::npos) &&
                                      (idStr.find(L"python.exe") != wstring::npos || idStr.find(L"pythonw.exe") != wstring::npos)) matched = true;
@@ -2588,10 +2591,11 @@ void UpdateVisualizerFrame() {
     if (g_Settings.realTimeVisualizer) {
         if (isPlaying) {
             float sessionPeak = GetActiveSessionPeak();
+            bool hasAudioSignal = (sessionPeak >= 0.005f) || (masterPeak >= 0.005f);
             std::lock_guard<std::mutex> guard(g_VisMutex);
             for (int i = 0; i < 8; i++) {
                 float target = g_VisRealtimeTargets[i];
-                if (sessionPeak < 0.005f) {
+                if (!hasAudioSignal) {
                     target = 0.15f;
                 }
                 g_VisTargets[i] = target;
@@ -2710,11 +2714,12 @@ void DrawVisualizer(Graphics& g, float x, float y, float maxWidth, float maxHeig
         int numSpectrumBars = 6;
         float barW3 = 4.5f * barScale;
         float gap3 = 3.0f * barScale;
+        float effectiveHeight3 = maxHeight + 6.0f * barScale; // Height boost +6 only for 6-bar preset!
         float centerY = y + maxHeight / 2.0f;
         for (int i = 0; i < numSpectrumBars; i++) {
             float val = g_VisBars[i] * 1.25f;
             if (val > 1.0f) val = 1.0f;
-            float h = val * maxHeight;
+            float h = val * effectiveHeight3;
             if (h < 3.0f) h = 3.0f;
 
             float bx = x + i * (barW3 + gap3);
@@ -4692,8 +4697,16 @@ LRESULT CALLBACK ExpandedWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                 showLyrics = g_Lyrics.showLyrics;
             }
 
-            // Visualizer click to cycle preset modes (Spectrum -> Waveform -> Pulse Ring -> Micro-Bars)
-            bool onVisBox = (g_Settings.showVisualizer && !showLyrics && mx >= artX && mx <= artX + artSize && my >= artY && my <= artY + artSize);
+            // Visualizer top-right header box click check (only target actual small visualizer area in top right)
+            int visMarginHeader = (sessionCount > 1) ? pad + 24 + 10 : pad;
+            float vWHeader = 8 * 3.0f + 7 * 2.0f;
+            float vHHeader = 12.0f;
+            float vxHeader = (float)(g_Settings.popupWidth - visMarginHeader - vWHeader);
+            float vyHeader = (float)pad + (g_Settings.popupIconSize - vHHeader) / 2.0f;
+
+            bool onVisBox = (g_Settings.showVisualizer && !showLyrics &&
+                             mx >= vxHeader - 6 && mx <= vxHeader + vWHeader + 6 &&
+                             my >= vyHeader - 6 && my <= vyHeader + vHHeader + 6);
             if (onVisBox) {
                 g_Settings.visualizerStyle = (g_Settings.visualizerStyle + 1) % 4;
                 InvalidateRect(hwnd, NULL, FALSE);
